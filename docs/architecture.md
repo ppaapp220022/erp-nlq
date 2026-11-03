@@ -133,6 +133,7 @@ tags: [회계]
 
 - 모델은 설정 한 줄로 바꿀 수 있게 만든다.
 - **생성과 평가 모두 Claude API를 쓴다.** API 키는 `.env`의 `ANTHROPIC_API_KEY`다. 평가 전용 키를 만들고 콘솔에서 월 한도를 건다.
+- CI의 `ai-review`는 API 키가 아니라 Max 구독 토큰(`CLAUDE_CODE_OAUTH_TOKEN`)으로 돈다. 앱 코드는 구독 토큰을 쓰지 않는다.
 - 반복 개발, 프롬프트 개선, CI에는 `claude-haiku-5-5`를 쓴다. 결과 표에 넣을 측정에만 `claude-opus-5-5`를 쓴다. 두 점수를 섞지 않는다.
 - 로컬 모델(Ollama)은 지금 쓰지 않는다. 오픈 모델 비교는 2차 목록에 있다.
 

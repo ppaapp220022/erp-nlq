@@ -40,7 +40,8 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Max 구독 토큰(claude setup-token). 사용량은 구독 한도에서 나간다. 앱의 생성·평가는 API 키를 따로 쓴다.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             ${{ runner.temp }}/review-prompt.md를 읽고 그대로 따른다.
             PR #${{ github.event.pull_request.number }}, 기준 브랜치는 origin/${{ github.base_ref }}이다.
