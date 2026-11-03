@@ -6,3 +6,6 @@
 __pycache__/
 node_modules/
 snapshots/
+
+# 트러블슈팅 기록은 구글 드라이브에서 관리한다 (CLAUDE.md)
+docs/troubleshooting/
