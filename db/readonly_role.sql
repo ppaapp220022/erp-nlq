@@ -25,19 +25,18 @@ BEGIN;
 
 REVOKE ALL ON ALL TABLES IN SCHEMA public FROM :"ro_user";
 
--- 허용 테이블. M1 테이블 확정 전 후보 목록이다. 확정되면 여기를 고친다.
+-- 허용 테이블 (M1 확정, 13개 + res_users 일부 열). 고른 이유는 docs/reference/odoo-access-rules.md.
+-- 역할별로 더 좁히는 것은 guard가 한다. 여기는 질의 계층 전체가 읽을 수 있는 상한이다.
 -- 판매
 GRANT SELECT ON sale_order, sale_order_line TO :"ro_user";
 -- 구매
 GRANT SELECT ON purchase_order, purchase_order_line TO :"ro_user";
--- 재고
-GRANT SELECT ON stock_picking, stock_move, stock_quant, stock_location,
-  stock_warehouse_orderpoint TO :"ro_user";
--- 회계
-GRANT SELECT ON account_move, account_move_line TO :"ro_user";
+-- 재고. stock_quant는 창고 밖 위치에도 있어서 stock_location.usage로 걸러야 한다.
+GRANT SELECT ON stock_picking, stock_quant, stock_location, stock_warehouse_orderpoint TO :"ro_user";
+-- 회계. 송장 단위만 연다. 라인(account_move_line)은 평가 문항에 필요해지면 연다.
+GRANT SELECT ON account_move TO :"ro_user";
 -- 공통 마스터
-GRANT SELECT ON res_partner, res_company, res_currency,
-  product_product, product_template, product_category, uom_uom TO :"ro_user";
+GRANT SELECT ON res_partner, res_company, product_product, product_template TO :"ro_user";
 -- 담당 영업 사원 연결용. 비밀번호 등 나머지 열은 주지 않는다.
 GRANT SELECT (id, partner_id, company_id, active) ON res_users TO :"ro_user";
 
