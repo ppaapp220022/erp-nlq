@@ -50,17 +50,21 @@ jobs:
 
             echo "::group::#$number ($head)"
             git switch -C "$head" "origin/$head"
-            if git rebase --onto "origin/$BASE" "$MERGED_SHA"; then
-              git push --force-with-lease="$head:origin/$head" origin "$head"
+            if ! git rebase --onto "origin/$BASE" "$MERGED_SHA"; then
+              git rebase --abort
+              gh pr comment "$number" --repo "$REPO" \
+                --body "#$MERGED_NUMBER 머지 뒤 자동으로 옮기다 충돌이 났다. 직접 옮긴다: \`git rebase --onto origin/$BASE $MERGED_SHA $head\`"
+            elif ! git push --force-with-lease="$head:origin/$head" origin "$head"; then
+              # 그사이 누가 푸시했거나, 워크플로 파일을 바꾸는 브랜치라 토큰 권한이 모자란 경우다.
+              # 이 PR만 건너뛰고 나머지 쌓인 PR은 계속 옮긴다.
+              gh pr comment "$number" --repo "$REPO" \
+                --body "#$MERGED_NUMBER 머지 뒤 옮긴 브랜치를 푸시하지 못했다. 직접 옮긴다: \`git rebase --onto origin/$BASE $MERGED_SHA $head\`"
+            else
               if [[ "$base" != "$BASE" ]]; then
                 gh api -X PATCH "repos/$REPO/pulls/$number" -f base="$BASE" > /dev/null
               fi
               gh pr comment "$number" --repo "$REPO" \
                 --body "#$MERGED_NUMBER 머지에 맞춰 \`$BASE\` 위로 옮겼다. checks·ai-review가 다시 돈다."
-            else
-              git rebase --abort
-              gh pr comment "$number" --repo "$REPO" \
-                --body "#$MERGED_NUMBER 머지 뒤 자동으로 옮기다 충돌이 났다. 직접 옮긴다: \`git rebase --onto origin/$BASE $MERGED_SHA $head\`"
             fi
             echo "::endgroup::"
           done

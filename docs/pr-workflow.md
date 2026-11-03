@@ -44,9 +44,9 @@ main에 머지하려면 필수 체크 두 개가 통과해야 한다.
 - draft PR에서는 `ai-review`가 돌지 않는다. 작업 중에는 draft로 두고, 준비되면 Ready로 바꾼다.
 - `ai-review`가 잘못 막았다고 판단되면, 이유를 PR 코멘트로 남기고 관리자 권한으로 우회 머지한다. 같은 오판이 반복되면 리뷰 지침을 고친다.
 
-### 워크플로를 바꾸는 PR은 `ai-review`가 항상 실패한다
+### `ai-review.yml`을 바꾸는 PR은 `ai-review`가 항상 실패한다
 
-`claude-code-action`은 워크플로 파일이 **기본 브랜치(main)의 것과 똑같을 때만** 실행된다. 그래서 `.github/workflows/ai-review.yml`을 바꾸는 PR에서는 리뷰를 건너뛰고, 판정 파일이 없으니 `ai-review`가 실패한다.
+`claude-code-action`은 자기를 부르는 워크플로 파일이 **기본 브랜치(main)의 것과 똑같을 때만** 실행된다. 그래서 `.github/workflows/ai-review.yml`을 바꾸는 PR에서는 리뷰를 건너뛰고, 판정 파일이 없으니 `ai-review`가 실패한다. 다른 워크플로(`checks.yml`, `restack.yml`)만 바꾸는 PR은 평소대로 리뷰된다(#11).
 
 이 동작은 의도한 대로다. PR이 관문 자체를 고쳐 스스로 통과하는 것을 막아 준다. 이런 PR은 다음 순서로 다룬다.
 1. 본문에 무엇을 왜 바꾸는지 적는다.
