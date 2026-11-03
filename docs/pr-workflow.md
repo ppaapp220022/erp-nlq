@@ -9,6 +9,17 @@
 - 커밋과 PR의 제목·본문은 **한국어**로 쓴다. 제목은 `type: 한국어 요약` 형식이다(type은 영어).
 - PR 본문은 [PR 템플릿](../.github/pull_request_template.md)을 따른다. "어떻게 확인했나"에는 실제로 실행한 명령과 결과를 적는다. 실행하지 못한 것은 못 했다고 쓴다.
 
+## 레포 설정
+
+| 설정 | 값 | 이유 |
+|---|---|---|
+| 머지 방식 | **스쿼시만** (머지 커밋·리베이스 머지 끔) | main에 PR 하나가 커밋 하나로 남는다. 이력이 일직선이다 |
+| 스쿼시 커밋 제목·본문 | PR 제목·PR 본문 | PR 제목이 곧 main의 커밋 제목이다. 그래서 PR 제목을 `type: 한국어 요약`으로 쓴다 |
+| 머지 후 브랜치 자동 삭제 | 켬 | 지운 브랜치를 기준으로 하던 PR은 GitHub이 main으로 옮겨 준다 |
+| "Update branch" 버튼 | 켬 | main이 앞서 나가면 PR 화면에서 바로 따라잡는다 |
+
+PR 브랜치 안의 커밋은 스쿼시되므로 작업 중에는 편하게 나눠 커밋한다.
+
 ## 관문
 
 main에 머지하려면 필수 체크 두 개가 통과해야 한다.
@@ -18,45 +29,76 @@ main에 머지하려면 필수 체크 두 개가 통과해야 한다.
 | `checks` | 셸·Python 문법, shellcheck, compose 설정, backend pytest (M3부터 우회 테스트, M6부터 평가 20문항) | 하나라도 실패 |
 | `ai-review` | Claude가 [.github/review/prompt.md](../.github/review/prompt.md) 기준으로 검토한다. 지침은 기준 브랜치 버전을 쓴다 | blocking 1건 이상, 또는 판정 파일 없음(실패 시 닫힘) |
 
-- draft PR에서는 `ai-review`가 돌지 않는다. 리뷰 비용을 아끼려면 작업 중에는 draft로 두고, 준비되면 Ready로 바꾼다.
+- `ai-review`는 Max 구독 토큰(시크릿 `CLAUDE_CODE_OAUTH_TOKEN`)으로 돈다. 만드는 법은 아래 "토큰 갱신".
+- draft PR에서는 `ai-review`가 돌지 않는다. 작업 중에는 draft로 두고, 준비되면 Ready로 바꾼다.
 - `ai-review`가 잘못 막았다고 판단되면, 이유를 PR 코멘트로 남기고 관리자 권한으로 우회 머지한다. 같은 오판이 반복되면 리뷰 지침을 고친다.
 
 ### 워크플로를 바꾸는 PR은 `ai-review`가 항상 실패한다
 
-`claude-code-action`은 워크플로 파일이 **기본 브랜치(main)의 것과 똑같을 때만** 실행된다. 그래서 `.github/workflows/ai-review.yml`을 바꾸거나 처음 추가하는 PR에서는 Claude가 리뷰를 건너뛰고, 판정 파일이 없으니 `ai-review`가 실패한다.
+`claude-code-action`은 워크플로 파일이 **기본 브랜치(main)의 것과 똑같을 때만** 실행된다. 그래서 `.github/workflows/ai-review.yml`을 바꾸는 PR에서는 리뷰를 건너뛰고, 판정 파일이 없으니 `ai-review`가 실패한다.
 
 이 동작은 의도한 대로다. PR이 관문 자체를 고쳐 스스로 통과하는 것을 막아 준다. 이런 PR은 다음 순서로 다룬다.
 1. 본문에 무엇을 왜 바꾸는지 적는다.
 2. `checks` 통과를 확인한다.
 3. diff를 직접 읽고 관리자 권한으로 우회 머지한다.
 
-## 쌓인 PR (stacked)
+워크플로가 main에 머지된 뒤 열려 있던 다른 PR은 main을 따라잡아야 리뷰가 돈다(아래 "main 따라잡기").
 
-앞 작업에 의존하는 작업은 앞 브랜치 위에 브랜치를 쌓는다. PR의 기준 브랜치를 앞 브랜치로 둔다.
+## main 따라잡기
 
-**머지 순서와 방식**
-1. 아래(main에 가까운 것)부터 하나씩 머지한다.
-2. 방식은 **머지 커밋**이다. 스쿼시나 리베이스로 합치면 위에 쌓인 PR들과 커밋이 달라져 충돌한다.
-3. **머지하기 전에 바로 위 PR의 기준 브랜치를 main으로 먼저 바꾼다.** 그다음 머지하고 브랜치를 지운다. 기준 브랜치가 지워지면 GitHub은 그 위 PR을 main으로 옮기지 않고 **닫아 버린다**([troubleshooting](troubleshooting/2026-11-03-stacked-pr-closed-on-branch-delete.md)).
+PR 브랜치는 main 위로 **리베이스**한다. 머지 커밋으로 main을 끌어오지 않는다.
 
 ```bash
-gh api -X PATCH repos/ppaapp220022/erp-nlq/pulls/<위 PR> -f base=main   # 1. 위 PR 기준을 main으로
-gh pr view <위 PR> --json baseRefName                                      # 2. main인지 확인
-gh pr merge <이 PR> --merge --delete-branch                                 # 3. 머지와 브랜치 삭제
+git fetch origin
+git rebase origin/main
+git push --force-with-lease      # 남이 올린 커밋이 있으면 거부된다
 ```
 
-**실수로 닫혔을 때 복구**
+푸시하면 `checks`와 `ai-review`가 다시 돈다. 리베이스는 그 브랜치의 PR이 열려 있는 동안만 한다. main은 절대 강제 푸시하지 않는다.
+
+## 쌓인 PR (stacked)
+
+앞 작업에 의존하는 작업은 앞 브랜치 위에 브랜치를 쌓고, PR의 기준 브랜치를 앞 브랜치로 둔다. 쌓기는 꼭 필요할 때만 하고, 2~3단을 넘기지 않는다.
+
+**main 따라잡기:** 맨 위 브랜치에서 한 번만 리베이스하면 아래 브랜치들도 같이 옮겨진다.
+
+```bash
+git switch <맨 위 브랜치>
+git rebase --update-refs origin/main
+git push --force-with-lease origin <아래 브랜치> <맨 위 브랜치>
+```
+
+**머지:** 아래(main에 가까운 것)부터 하나씩 스쿼시 머지한다.
+1. 아래 PR을 머지한다. 브랜치가 자동으로 지워지고, 바로 위 PR의 기준은 GitHub이 main으로 옮긴다.
+2. 위 브랜치에는 아래 PR의 **원래 커밋**이 남아 있다. 스쿼시된 커밋과 내용은 같지만 커밋이 달라서, 그대로 두면 diff가 겹치거나 충돌한다. 원래 커밋을 떼어 내고 main 위로 옮긴다.
+
+```bash
+git fetch origin
+git rebase --update-refs --onto origin/main <아래 브랜치(로컬)> <위 브랜치>
+git push --force-with-lease origin <위 브랜치>
+```
+
+`<아래 브랜치(로컬)>`는 원격에서 지워졌어도 로컬에 남은 것을 쓴다. 리베이스가 끝날 때까지 로컬 브랜치를 지우지 않는다.
+
+**자동 삭제를 쓰지 않고 브랜치를 직접 지우면** GitHub은 위 PR을 옮기지 않고 닫는다([troubleshooting](troubleshooting/2026-11-03-stacked-pr-closed-on-branch-delete.md)). 브랜치는 직접 지우지 않는다. 실수로 닫혔을 때는 다음 순서로 복구한다.
 1. 지워진 기준 브랜치를 그 커밋으로 되살린다: `git push origin <커밋>:refs/heads/<브랜치>`
 2. PR을 다시 연다: `gh pr reopen <번호>`
-3. 기준을 main으로 바꾸고, main인 것을 확인한다.
-4. 확인한 뒤에만 되살린 브랜치를 지운다.
+3. 기준을 main으로 바꾸고, main인 것을 확인한 뒤에만 되살린 브랜치를 지운다.
 
 ## 머지 권한
 
-- Claude는 PR을 만들 수 있다. **머지, 브랜치 보호 변경, 시크릿 관련 작업은 사용자 승인을 받은 뒤에만** 한다.
-- API 키 같은 시크릿 값은 사용자가 `gh secret set`으로 직접 넣는다. Claude는 값을 보지 않고 이름만 확인한다.
+- Claude는 PR을 만들고, 자기 PR 브랜치를 리베이스·강제 푸시할 수 있다. **머지, 레포·브랜치 보호 설정 변경, 시크릿 관련 작업은 사용자 승인을 받은 뒤에만** 한다.
+- 시크릿 값은 사용자가 직접 넣는다. Claude는 값을 보지 않고 이름과 길이만 확인한다.
+
+### 토큰 갱신
+
+`CLAUDE_CODE_OAUTH_TOKEN`은 1년짜리다. 만료되면 `ai-review`가 비용 0으로 곧바로 실패한다. 채팅이 아닌 터미널 탭에서 직접 실행한다. 화면에서 토큰을 복사하지 않고 바로 시크릿에 넣는다.
+
+```bash
+stty cols 400; script -q "$TMPDIR/st.log" claude setup-token; stty cols "$(tput cols)"; T="$(sed 's/\x1b\[[0-9;?]*[a-zA-Z]//g' "$TMPDIR/st.log" | grep -ao 'sk-ant-oat[A-Za-z0-9_-]*' | tail -1)"; rm -f "$TMPDIR/st.log"; echo "길이 ${#T}"; [ ${#T} -gt 80 ] && printf %s "$T" | gh secret set CLAUDE_CODE_OAUTH_TOKEN --repo ppaapp220022/erp-nlq; unset T
+```
 
 ## 머지한 뒤
 
 - `docs/plan.md`의 체크박스와 "현재 위치"가 머지한 내용과 맞는지 확인한다.
-- 로컬을 정리한다: `git fetch --prune`, 그리고 지워진 원격 브랜치를 가리키는 로컬 브랜치를 삭제한다.
+- 로컬을 정리한다: `git switch main && git pull --ff-only && git fetch --prune`, 그리고 머지된 로컬 브랜치를 지운다(`git branch -D`, 스쿼시라 `-d`는 거부된다).
