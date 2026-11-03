@@ -8,7 +8,7 @@
 flowchart LR
     U[사용자 + 역할] --> W[화면<br/>Next.js]
     W --> A[API<br/>FastAPI]
-    A --> R[retrieve<br/>역할이 볼 수 있는 스키마만]
+    A --> R[retrieve<br/>OKF 기본 지식 + RAG 검색<br/>둘 다 역할로 거름]
     R --> G[generate<br/>LLM → SQL]
     G --> E
     subgraph E[execute: 신뢰하는 영역]
@@ -81,11 +81,38 @@ def execute(sql: str, user: User) -> Rows: ...                   # 권한 강제
 - Odoo Community 19.0 데모 데이터. DB 이름은 `.env`의 `ODOO_DB_NAME`(기본값 `erp`)이다.
 - 평가가 재현되도록 `pg_dump` 스냅숏과 "오늘 날짜" 고정값을 함께 쓴다(M1).
 - 허용 테이블 후보는 `db/readonly_role.sql`에 있다. M1에 10개 안팎으로 확정한다.
-- 알려진 함정은 다음과 같다. 상세는 M1에 `docs/domain/`에 정리한다.
+- 알려진 함정은 다음과 같다. 상세는 M1에서 `knowledge/`의 OKF 문서로 정리한다(아래 "지식 층").
   - `name` 등 번역 필드가 jsonb다.
   - `account_move`는 `move_type`(송장·환불·전표)과 `state`를 같이 봐야 한다.
   - `res_partner`에 회사와 담당자가 섞여 있다.
   - 매출은 주문 기준인지 송장 기준인지, 부가세를 포함하는지(`amount_untaxed`와 `amount_total`)에 따라 달라진다.
+
+## 지식 층: OKF + RAG
+
+`generate`에 넘기는 컨텍스트는 두 층이다. 둘 다 `retrieve`가 역할로 거른 뒤에 넘긴다.
+
+| 층 | 무엇을 | 어떻게 넣나 |
+|---|---|---|
+| **OKF 묶음** (`knowledge/`) | 사람이 다듬은 작고 정확한 지식: 확정 테이블 설명, 데이터 함정, 업무 흐름, 매출·미수금 지표 정의 | 역할이 볼 수 있는 문서는 **항상** 넣는다 |
+| **RAG** (pgvector) | 너무 커서 다듬을 수 없는 것: 열 단위 스키마, 예시 질문-SQL(`eval/examples/`) | 질문마다 검색해서 넣는다 |
+
+OKF 문서 규칙은 다음과 같다. OKF는 v0.1 초안이라 필수 필드 `type`만 규격을 따르고, 나머지는 이 프로젝트의 규칙이다.
+
+```markdown
+---
+type: metric            # table | metric | flow | pitfall
+title: 매출
+tables: [account_move, account_move_line]   # 역할로 거를 때 쓴다
+tags: [회계]
+---
+매출 = 확정(state='posted')된 고객 송장(move_type='out_invoice')에서 환불(out_refund)을 뺀 값, 부가세 제외(amount_untaxed).
+관련: [미수금](receivable.md), [account_move](../tables/account_move.md)
+```
+
+- 문서의 `tables`에 역할 밖 테이블이 하나라도 있으면 그 문서는 빼고 넘긴다.
+- 지표 정의는 Odoo 소스나 보고서 화면을 근거로 쓰고, 근거를 본문에 링크한다.
+- 평가용 질문과 정답 SQL은 OKF 문서에 넣지 않는다. 절대 규칙 4가 여기에도 적용된다.
+- M5에서 같은 50문항으로 "RAG만"과 "OKF + RAG"를 비교한다.
 
 ## 평가
 
@@ -107,16 +134,17 @@ def execute(sql: str, user: User) -> Rows: ...                   # 권한 강제
 backend/            Python, FastAPI
   nlq/
     generate.py     질문 → SQL
-    retrieve.py     스키마 검색, 역할별 거르기 (2단계)
+    retrieve.py     OKF 묶음 + RAG 검색, 역할별 거르기 (2단계)
     guard.py        sqlglot 검증·재작성
     execute.py      guard + 실행. DB로 가는 유일한 경로
     identity.py     사용자·역할 → 허용 테이블과 행 범위
   tests/            우회 테스트 포함
+knowledge/          OKF 묶음: tables/, metrics/, flows/, pitfalls/
 eval/
   questions/        평가용 (프롬프트 사용 금지)
   examples/         예시용
 web/                Next.js
 db/                 DB 역할·정책 SQL
 scripts/            운영 스크립트
-docs/               architecture, plan, adr, troubleshooting, domain, retro
+docs/               architecture, plan, adr, troubleshooting, retro
 ```
