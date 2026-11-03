@@ -1,6 +1,6 @@
 # 개발 계획 (1인)
 
-> **현재 위치:** M1. 인프라, 읽기 전용 역할, 영업 사원 데이터, 스냅숏까지 끝났다. 다음은 구매·재고·회계 Record Rules 읽기와 테이블 확정이다.
+> **현재 위치:** M1. 인프라, 영업 사원 데이터, 스냅숏, Record Rules 조사, 테이블 확정까지 끝났다. 영업 사원 역할 정의를 결정해야 한다(reference/odoo-access-rules.md 끝). 다음은 프로젝트 뼈대(평가 폴더, 함수 뼈대, PR 템플릿)다.
 >
 > 작업이 끝날 때마다 이 줄과 아래 체크박스를 갱신한다.
 
@@ -35,8 +35,9 @@
 - [x] 이미지 digest 고정 (`odoo:19.0` 20261102 빌드, `pgvector/pgvector:pg16`)
 - [x] 영업 사원 4명(Marc Demo + 3명)에게 주문·송장 배정, 주문 2건은 담당자 없음. 4명 모두 Odoo와 SQL 수 일치 (`scripts/db-seed.sh`)
 - [x] 스냅숏 저장·복원 스크립트 (`scripts/db-snapshot.sh`, DB + filestore), 복원 왕복 확인. 기준 스냅숏: `snapshots/erp-20261103.zip` (git 제외)
-- [ ] Access Rights·Record Rules 읽기: 판매·구매·재고·회계 규칙을 architecture.md 역할 표에 추가
-- [ ] 테이블 10개 안팎 확정, `db/readonly_role.sql` 갱신
+- [x] Access Rights·Record Rules 읽기: [reference/odoo-access-rules.md](reference/odoo-access-rules.md), 재현 스크립트 `scripts/odoo_access_report.py`
+- [x] 테이블 13개 + `res_users` 일부 열 확정, `db/readonly_role.sql` 갱신 (뺀 테이블은 권한 없음 확인)
+- [ ] 영업 사원 역할 정의 결정 (데모 그대로 / 역할 분리 / guard만 엄격)
 - [ ] 도메인 지식 묶음(OKF 형식, `knowledge/`): 확정 테이블 설명, 데이터 함정, 매출·미수금 지표 정의. 형식은 architecture.md "지식 층" 참고
 - [ ] 업무 흐름 지도: 판매(주문→출고→송장→수금), 구매(발주→입고→매입 송장→지급)를 테이블에 연결
 - [ ] 평가 기반: `eval/questions/`·`eval/examples/` 분리, "오늘 날짜" 고정값
