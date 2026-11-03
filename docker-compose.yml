@@ -1,10 +1,14 @@
 services:
   db:
-    image: postgres:16
+    # postgres:16 + pgvector. 같은 메이저 버전이라 기존 볼륨을 그대로 쓴다.
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_DB: postgres
       POSTGRES_USER: odoo
       POSTGRES_PASSWORD: ${ODOO_DB_PASSWORD:-odoo}
+    ports:
+      # 질의 계층·psql 접속용. 맥 밖으로는 열지 않는다.
+      - "127.0.0.1:5432:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
   odoo:
@@ -12,7 +16,7 @@ services:
     depends_on:
       - db
     ports:
-      - "8069:8069"
+      - "127.0.0.1:8069:8069"
     environment:
       HOST: db
       USER: odoo
