@@ -94,7 +94,7 @@ git push --force-with-lease origin <위 브랜치>
 
 restack은 머지된 PR의 마지막 커밋을 품은 브랜치만 옮긴다. 아래 브랜치를 강제 푸시한 뒤 위 브랜치를 따라 옮기지 않았다면 대상에서 빠지므로, 쌓인 브랜치는 항상 `--update-refs`로 함께 옮긴다.
 
-**자동 삭제를 쓰지 않고 브랜치를 직접 지우면** GitHub은 위 PR을 옮기지 않고 닫는다([troubleshooting](troubleshooting/2026-11-03-stacked-pr-closed-on-branch-delete.md)). 브랜치는 직접 지우지 않는다. 실수로 닫혔을 때는 다음 순서로 복구한다.
+**자동 삭제를 쓰지 않고 브랜치를 직접 지우면** GitHub은 위 PR을 옮기지 않고 닫는다(드라이브 troubleshooting `2026-11-03-stacked-pr-closed-on-branch-delete.md`). 브랜치는 직접 지우지 않는다. 실수로 닫혔을 때는 다음 순서로 복구한다.
 1. 지워진 기준 브랜치를 그 커밋으로 되살린다: `git push origin <커밋>:refs/heads/<브랜치>`
 2. PR을 다시 연다: `gh pr reopen <번호>`
 3. 기준을 main으로 바꾸고, main인 것을 확인한 뒤에만 되살린 브랜치를 지운다.

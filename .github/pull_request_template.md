@@ -19,6 +19,6 @@
 - [ ] 실제로 실행해서 확인했다 (안 했다면 위에 이유를 적었다)
 - [ ] 권한 계층을 바꿨다면 Odoo 결과와 비교했다 (`scripts/db-seed.sh` 출력 또는 권한 일치 검증)
 - [ ] `docs/plan.md`의 체크박스와 "현재 위치"를 갱신했다
-- [ ] 부딪힌 문제는 `docs/troubleshooting/`에, 결정은 `docs/adr/`에 남겼다 (해당할 때)
+- [ ] 부딪힌 문제는 드라이브 troubleshooting 폴더에, 결정은 `docs/adr/`에 남겼다 (해당할 때)
 - [ ] plan.md 1·2단계 밖 기능을 넣지 않았다
 - [ ] 하루 뒤 diff를 다시 읽었다

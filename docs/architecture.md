@@ -156,5 +156,5 @@ eval/
 web/                Next.js
 db/                 DB 역할·정책 SQL
 scripts/            운영 스크립트
-docs/               architecture, plan, adr, troubleshooting, retro
+docs/               architecture, plan, adr, reference, retro (troubleshooting은 드라이브)
 ```

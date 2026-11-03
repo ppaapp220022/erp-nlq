@@ -4,7 +4,7 @@ ERP(Odoo) 데이터를 한국어로 물으면 SQL로 바꿔 답한다. LLM이 �
 
 - 구조와 신뢰 경계: [docs/architecture.md](docs/architecture.md)
 - 일정, 완료 기준, 현재 위치: [docs/plan.md](docs/plan.md). 작업을 시작하기 전에 읽고, 끝나면 체크박스를 갱신한다.
-- 결정 기록: [docs/adr/](docs/adr/) · 실제로 부딪힌 문제: [docs/troubleshooting/](docs/troubleshooting/)
+- 결정 기록: [docs/adr/](docs/adr/) · 실제로 부딪힌 문제: 구글 드라이브 `ERP 자연어 질의 시스템/troubleshooting` 폴더(폴더 id `1ZJQdQkBsnkV3JXchqeyoQBEc_ugseilt`, 비공개). 레포에는 올리지 않는다(`docs/troubleshooting/`은 gitignore).
 
 ## 명령
 
@@ -45,6 +45,6 @@ Odoo 소스는 컨테이너 안 `/usr/lib/python3/dist-packages/odoo`에 있다.
 - "끝났다"는 plan.md의 완료 기준으로 판단한다. 실행해서 확인하지 못했으면 못 했다고 적는다.
 - 생성과 평가는 Claude API로 한다(`ANTHROPIC_API_KEY`, `EVAL_MODEL`). 개발에는 Haiku, 결과 표용 측정에는 Opus를 쓴다.
 - 점수나 숫자가 바뀌는 작업은 전후 숫자와 잰 모델을 함께 기록한다. Haiku 점수와 Opus 점수를 섞지 않는다.
-- 미리 보고 막은 위험은 ADR에, 실제로 부딪힌 문제는 troubleshooting에 적는다.
+- 미리 보고 막은 위험은 ADR에, 실제로 부딪힌 문제는 드라이브 troubleshooting 폴더에 `YYYY-MM-DD-주제.md`로 적는다(상황·원인·시도·해결·배운 점).
 - 브랜치·PR·머지 절차(스쿼시 머지, main 따라잡기는 리베이스, 쌓인 PR, 워크플로 변경 PR 처리)는 [docs/pr-workflow.md](docs/pr-workflow.md)를 따른다. 머지와 브랜치 보호 변경은 사용자 승인 후에만 한다.
 - PR은 필수 체크 두 개를 통과해야 머지된다. `checks`는 결정적 검사이고, `ai-review`는 Claude가 [.github/review/prompt.md](.github/review/prompt.md) 기준으로 검토해 blocking이 있으면 실패한다. 리뷰 지침은 기준 브랜치의 것을 쓴다. 지침을 바꾸는 PR은 이유를 본문에 적는다.
