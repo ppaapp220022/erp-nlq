@@ -31,3 +31,9 @@ jobs:
 
       - name: compose 설정
         run: docker compose config --quiet
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: backend 테스트
+        # M3부터 권한 우회 테스트가 여기서 돈다.
+        run: uv run --directory backend --python 3.12 pytest -q
