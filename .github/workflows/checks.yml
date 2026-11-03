@@ -36,4 +36,4 @@ jobs:
 
       - name: backend 테스트
         # M3부터 권한 우회 테스트가 여기서 돈다.
-        run: uv run --directory backend --python 3.12 pytest -q
+        run: uv run --directory backend --locked pytest -q
