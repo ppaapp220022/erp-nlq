@@ -46,7 +46,8 @@ jobs:
             --jq '.[] | select(.isCrossRepository | not) | "\(.number) \(.headRefName) \(.baseRefName)"' |
           while read -r number head base; do
             # 머지된 PR의 원래 커밋을 품고 있는 브랜치만 쌓인 PR이다. 독립 PR은 건너뛴다.
-            git merge-base --is-ancestor "$MERGED_SHA" "origin/$head" || continue
+            # 그 커밋을 품은 브랜치가 없으면 fetch되지 않아 git이 "Not a valid commit"을 낸다. 건너뛰면 된다.
+            git merge-base --is-ancestor "$MERGED_SHA" "origin/$head" 2>/dev/null || continue
 
             echo "::group::#$number ($head)"
             git switch -C "$head" "origin/$head"
