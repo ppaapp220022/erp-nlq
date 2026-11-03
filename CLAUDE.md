@@ -13,6 +13,7 @@ docker compose up -d                 # Odoo 19 + Postgres 16(pgvector), 둘 다 
 ./scripts/db-readonly-role.sh        # 질의용 역할 nlq_readonly 생성·권한 재적용 (멱등)
 ./scripts/db-seed.sh                 # 영업 사원 추가와 담당자 배정, Odoo와 SQL 수 비교 출력 (멱등)
 ./scripts/db-snapshot.sh save|restore <파일>   # snapshots/ 에 DB + filestore 저장·복원
+uv run --directory backend pytest  # 백엔드 테스트 (Python 3.12, uv 필요)
 ./scripts/odoo-shell.sh <파일.py>     # Odoo ORM(env)으로 Python 실행. 권한 조사는 scripts/odoo_access_report.py
 ```
 

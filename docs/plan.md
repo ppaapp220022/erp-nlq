@@ -1,6 +1,6 @@
 # 개발 계획 (1인)
 
-> **현재 위치:** M1. 인프라, 영업 사원 데이터, 스냅숏, Record Rules 조사, 테이블 확정까지 끝났다. 영업 사원 역할 정의를 결정해야 한다(reference/odoo-access-rules.md 끝). 다음은 프로젝트 뼈대(평가 폴더, 함수 뼈대, PR 템플릿)다.
+> **현재 위치:** M1. 남은 것은 영업 사원 역할 결정, OKF 도메인 묶음, 업무 흐름 지도다. 로컬 Python 도구(uv, Python 3.12)가 아직 없어 M2 전에 설치해야 한다.
 >
 > 작업이 끝날 때마다 이 줄과 아래 체크박스를 갱신한다.
 
@@ -40,10 +40,10 @@
 - [ ] 영업 사원 역할 정의 결정 (데모 그대로 / 역할 분리 / guard만 엄격)
 - [ ] 도메인 지식 묶음(OKF 형식, `knowledge/`): 확정 테이블 설명, 데이터 함정, 매출·미수금 지표 정의. 형식은 architecture.md "지식 층" 참고
 - [ ] 업무 흐름 지도: 판매(주문→출고→송장→수금), 구매(발주→입고→매입 송장→지급)를 테이블에 연결
-- [ ] 평가 기반: `eval/questions/`·`eval/examples/` 분리, "오늘 날짜" 고정값
-- [ ] `generate`·`execute` 함수 뼈대
+- [x] 평가 기반: `eval/questions/`·`eval/examples/` 분리와 문항 형식(`eval/README.md`), 오늘 날짜 2026-11-03 고정(`eval/config.yaml`, 데모 날짜 범위 09-24~11-03으로 확인)
+- [x] `generate`·`execute` 함수 뼈대(`backend/nlq`), 공개 함수가 둘뿐인지 보는 경계 테스트
 - [x] PR 관문 CI: `checks`(문법·shellcheck·compose) + `ai-review`(Claude, blocking 시 실패). 시크릿·브랜치 보호 설정은 남음
-- [ ] PR 템플릿 (셀프 리뷰 체크리스트)
+- [x] PR 템플릿 (셀프 리뷰 체크리스트, 자동 검사와 겹치지 않게)
 
 ## 기능별 완료 기준
 
