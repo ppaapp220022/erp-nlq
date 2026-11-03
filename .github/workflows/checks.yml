@@ -1,0 +1,33 @@
+# 결정적 검사. 브랜치 보호의 필수 체크 `checks`다.
+# 지금은 스크립트·설정 문법만 본다. M3부터 권한 우회 테스트, M6부터 평가 20문항을 여기에 붙인다.
+name: checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 셸 스크립트 문법
+        run: |
+          for f in scripts/*.sh; do bash -n "$f"; done
+          shellcheck -S warning scripts/*.sh
+
+      - name: Python 문법
+        # scripts/*.py는 Odoo shell 안에서 도는 파일이라 import 없이 문법만 본다.
+        run: python3 -m py_compile scripts/*.py
+
+      - name: compose 설정
+        run: docker compose config --quiet

@@ -37,4 +37,8 @@ docker compose exec -T odoo odoo server --db_host db -r odoo -w "$ODOO_DB_PASSWO
 
 http://localhost:8069 에 데모 관리자 계정으로 로그인할 수 있다.
 
+## CI
+
+PR마다 `checks`(결정적 검사)와 `ai-review`(Claude 리뷰, [.github/review/prompt.md](.github/review/prompt.md))가 돈다. 둘 다 main 브랜치 보호의 필수 체크다. `ai-review`에는 레포 시크릿 `ANTHROPIC_API_KEY`와 [Claude GitHub App](https://github.com/apps/claude) 설치가 필요하다.
+
 질의 계층은 `localhost:5432`에 `NLQ_RO_USER`로 접속한다. 허용 테이블은 [db/readonly_role.sql](db/readonly_role.sql)에 있다.

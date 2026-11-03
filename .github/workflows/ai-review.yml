@@ -1,0 +1,81 @@
+# Claude가 PR을 .github/review/prompt.md(기준 브랜치 버전) 기준으로 검토하는 관문. 브랜치 보호의 필수 체크 `ai-review`다.
+# blocking 문제가 1개 이상이거나 판정 파일이 없으면 실패한다(실패 시 닫힘).
+# 판정을 PR 코멘트 하나로 남기고, 다시 push하면 그 코멘트를 갱신한다.
+name: ai-review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: ai-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  ai-review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # 지침은 기준 브랜치의 것을 쓴다. PR이 지침을 느슨하게 고쳐 스스로 통과하지 못하게 하기 위해서다.
+      # 기준 브랜치에 아직 없으면(지침을 처음 추가하는 PR) PR의 것을 쓴다.
+      - name: 리뷰 지침 고정
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git show "origin/$BASE_REF:.github/review/prompt.md" > "$RUNNER_TEMP/review-prompt.md" 2>/dev/null \
+            || cp .github/review/prompt.md "$RUNNER_TEMP/review-prompt.md"
+
+      - name: Claude 리뷰
+        uses: anthropics/claude-code-action@v1
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            ${{ runner.temp }}/review-prompt.md를 읽고 그대로 따른다.
+            PR #${{ github.event.pull_request.number }}, 기준 브랜치는 origin/${{ github.base_ref }}이다.
+            마지막에 review-verdict.json을 쓴다.
+          claude_args: >-
+            --model claude-sonnet-5-5
+            --max-turns 40
+            --allowedTools "Read,Grep,Glob,Write,Bash(git diff:*),Bash(git log:*),Bash(git show:*)"
+
+      - name: 판정
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [[ ! -s review-verdict.json ]] || ! jq -e '.blocking and .notes' review-verdict.json > /dev/null; then
+            echo "::error::review-verdict.json이 없거나 형식이 틀렸다. 실패 시 닫힘으로 막는다."
+            exit 1
+          fi
+
+          blocking=$(jq '.blocking | length' review-verdict.json)
+          {
+            echo "## AI 리뷰: $([[ $blocking -gt 0 ]] && echo "막음 (blocking $blocking건)" || echo "통과")"
+            echo
+            jq -r '.summary' review-verdict.json
+            echo
+            jq -r '.blocking[] | "- **[막음] \(.file):\(.line // "-")** \(.rule) — \(.why)"' review-verdict.json
+            jq -r '.notes[] | "- [참고] \(.file):\(.line // "-") — \(.why)"' review-verdict.json
+            echo
+            echo "<sub>${{ github.sha }} 기준 · 지침: .github/review/prompt.md</sub>"
+          } > comment.md
+
+          gh pr comment "$PR" --body-file comment.md --edit-last --create-if-none
+          cat comment.md >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ $blocking -gt 0 ]]; then
+            echo "::error::blocking 문제 $blocking건"
+            exit 1
+          fi
