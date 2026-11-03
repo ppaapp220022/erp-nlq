@@ -42,6 +42,7 @@
 - [ ] 업무 흐름 지도: 판매(주문→출고→송장→수금), 구매(발주→입고→매입 송장→지급)를 테이블에 연결
 - [ ] 평가 기반: `eval/questions/`·`eval/examples/` 분리, "오늘 날짜" 고정값
 - [ ] `generate`·`execute` 함수 뼈대
+- [x] PR 관문 CI: `checks`(문법·shellcheck·compose) + `ai-review`(Claude, blocking 시 실패). 시크릿·브랜치 보호 설정은 남음
 - [ ] PR 템플릿 (셀프 리뷰 체크리스트)
 
 ## 기능별 완료 기준
@@ -70,7 +71,7 @@
 | Odoo 보고서 대조 | 매출·미수금 보고서와 숫자 일치, 다르면 원인 설명 | M5 | [ ] |
 | 권한 강제 (RLS) | 같은 규칙을 RLS로 구현해 비교, Record Rules 소스 근거 ADR | M6 | [ ] |
 | 감사 로그 | 질문·SQL·사용자·시간 기록, 개인정보 제외 | M6 | [ ] |
-| CI | 권한 테스트와 평가 20문항(Haiku), API 키는 GitHub Secrets | M6 | [ ] |
+| CI | 권한 테스트와 평가 20문항(Haiku), API 키는 GitHub Secrets. PR 관문(`checks` + `ai-review`)은 M1에 먼저 만들었고, M6에서 평가 20문항을 `checks`에 붙인다 | M6 | [ ] |
 | 비교 기준 2 | WrenAI와 같은 50문항으로 비교 | M6 | [ ] |
 | 도구 선택 ADR | Odoo·WrenAI·sqlglot을 고른 이유, 버전 고정, 활성도 | M6 | [ ] |
 
