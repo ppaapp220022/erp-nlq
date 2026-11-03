@@ -40,10 +40,11 @@ def execute(sql: str, user: User) -> Rows: ...                   # 권한 강제
 
 | 역할 | Odoo 그룹 | 판매 주문 범위 |
 |---|---|---|
-| 영업 사원 | `sales_team.group_sale_salesman` | 내 주문 + 담당자 없는 주문 |
+| 영업 사원 | `sales_team.group_sale_salesman` (재고 그룹 없음) | 내 주문 + 담당자 없는 주문 |
+| 재고 담당 | `stock.group_stock_user` | 전체 (구매·재고도 전체, 고객 송장은 못 봄) |
 | 영업 관리자 | `group_sale_salesman_all_leads` 이상 | 전체 |
 
-Odoo가 권한을 합치는 방식(전역 규칙은 AND, 그룹 규칙은 OR)과 허용 테이블 13개별 규칙은 [reference/odoo-access-rules.md](reference/odoo-access-rules.md)에 있다. guard는 그 문서의 "전역 AND (그룹 OR)" 구조를 그대로 따른다. 영업 사원 역할의 정의(재고 그룹 포함 여부)는 아직 결정 전이다.
+Odoo가 권한을 합치는 방식(전역 규칙은 AND, 그룹 규칙은 OR)과 허용 테이블 13개별 규칙은 [reference/odoo-access-rules.md](reference/odoo-access-rules.md)에 있다. guard는 그 문서의 "전역 AND (그룹 OR)" 구조를 그대로 따른다. 역할을 이렇게 나눈 이유는 [ADR 0002](adr/0002-separate-sales-and-stock-roles.md)에 있다.
 
 근거는 Odoo `sale/security/ir_rules.xml`의 `sale_order_personal_rule`이다.
 `domain_force = ['|', ('user_id','=',user.id), ('user_id','=',False)]`

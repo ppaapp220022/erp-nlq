@@ -26,3 +26,4 @@
 | 번호 | 제목 | 상태 |
 |---|---|---|
 | [0001](0001-odoo-as-data-source.md) | 데이터 소스로 Odoo Community 19 | 채택 |
+| [0002](0002-separate-sales-and-stock-roles.md) | 영업 사원과 재고 담당 역할 분리 | 채택 |

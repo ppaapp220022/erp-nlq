@@ -9,7 +9,7 @@ MODELS = [
     "account.move",
     "res.partner", "res.company", "product.product", "product.template", "res.users",
 ]
-USERS = ["sales.kim", "admin"]
+USERS = ["sales.kim", "stock.choi", "admin"]
 GROUPS = [
     "sales_team.group_sale_salesman", "sales_team.group_sale_salesman_all_leads",
     "sales_team.group_sale_manager", "stock.group_stock_user",

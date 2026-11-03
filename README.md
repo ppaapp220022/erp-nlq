@@ -26,7 +26,7 @@ docker compose exec -T odoo odoo server --db_host db -r odoo -w "$ODOO_DB_PASSWO
 ./scripts/db-readonly-role.sh
 ```
 
-3. 영업 사원을 추가하고 주문·송장 담당자를 나눈 뒤, 평가용 기준 스냅숏을 저장한다.
+3. 역할별 사용자(영업 사원 4명, 재고 담당 1명)를 만들고 주문·송장 담당자를 나눈 뒤, 평가용 기준 스냅숏을 저장한다. 데모의 Marc Demo에서 재고 그룹을 빼므로 원래 데모 설정과 다르다([ADR 0002](docs/adr/0002-separate-sales-and-stock-roles.md)).
 
 ```bash
 ./scripts/db-seed.sh

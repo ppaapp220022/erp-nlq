@@ -1,6 +1,6 @@
 # 개발 계획 (1인)
 
-> **현재 위치:** M1. 남은 것은 영업 사원 역할 결정, OKF 도메인 묶음, 업무 흐름 지도다. 로컬 Python 도구(uv, Python 3.12)가 아직 없어 M2 전에 설치해야 한다.
+> **현재 위치:** M1. 남은 것은 OKF 도메인 묶음과 업무 흐름 지도다. 로컬 Python 도구(uv, Python 3.12)가 아직 없어 M2 전에 설치해야 한다.
 >
 > 작업이 끝날 때마다 이 줄과 아래 체크박스를 갱신한다.
 
@@ -37,7 +37,7 @@
 - [x] 스냅숏 저장·복원 스크립트 (`scripts/db-snapshot.sh`, DB + filestore), 복원 왕복 확인. 기준 스냅숏: `snapshots/erp-20261103.zip` (git 제외)
 - [x] Access Rights·Record Rules 읽기: [reference/odoo-access-rules.md](reference/odoo-access-rules.md), 재현 스크립트 `scripts/odoo_access_report.py`
 - [x] 테이블 13개 + `res_users` 일부 열 확정, `db/readonly_role.sql` 갱신 (뺀 테이블은 권한 없음 확인)
-- [ ] 영업 사원 역할 정의 결정 (데모 그대로 / 역할 분리 / guard만 엄격)
+- [x] 역할 정의: 영업 사원 4명(재고 그룹 제외) + 재고 담당 1명 (ADR 0002), 5명 모두 Odoo와 SQL 수 일치, 스냅숏 다시 저장
 - [ ] 도메인 지식 묶음(OKF 형식, `knowledge/`): 확정 테이블 설명, 데이터 함정, 매출·미수금 지표 정의. 형식은 architecture.md "지식 층" 참고
 - [ ] 업무 흐름 지도: 판매(주문→출고→송장→수금), 구매(발주→입고→매입 송장→지급)를 테이블에 연결
 - [x] 평가 기반: `eval/questions/`·`eval/examples/` 분리와 문항 형식(`eval/README.md`), 오늘 날짜 2026-11-03 고정(`eval/config.yaml`, 데모 날짜 범위 09-24~11-03으로 확인)
