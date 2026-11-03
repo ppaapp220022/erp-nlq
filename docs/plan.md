@@ -1,6 +1,6 @@
 # 개발 계획 (1인)
 
-> **현재 위치:** M1. 인프라와 읽기 전용 역할까지 끝났다. 다음은 영업 사원 데이터 준비와 스냅숏이다.
+> **현재 위치:** M1. 인프라, 읽기 전용 역할, 영업 사원 데이터, 스냅숏까지 끝났다. 다음은 구매·재고·회계 Record Rules 읽기와 테이블 확정이다.
 >
 > 작업이 끝날 때마다 이 줄과 아래 체크박스를 갱신한다.
 
@@ -32,9 +32,9 @@
 - [x] compose: pgvector 이미지, 포트를 127.0.0.1에만 공개
 - [x] 데모 데이터와 판매·구매·재고·회계 앱이 들어간 DB 생성
 - [x] `nlq_readonly` 역할 생성과 권한 검증 (쓰기·스키마 생성·임시 테이블 차단 확인)
-- [ ] 이미지 digest 고정 (`odoo:19.0` 태그는 매일 바뀜)
-- [ ] 영업 사원 3–4명을 만들고 주문을 나눠 배정 (데모에는 Mitchell Admin 7건, Marc Demo 17건뿐)
-- [ ] `pg_dump` 스냅숏 생성과 복원 스크립트
+- [x] 이미지 digest 고정 (`odoo:19.0` 20261102 빌드, `pgvector/pgvector:pg16`)
+- [x] 영업 사원 4명(Marc Demo + 3명)에게 주문·송장 배정, 주문 2건은 담당자 없음. 4명 모두 Odoo와 SQL 수 일치 (`scripts/db-seed.sh`)
+- [x] 스냅숏 저장·복원 스크립트 (`scripts/db-snapshot.sh`, DB + filestore), 복원 왕복 확인. 기준 스냅숏: `snapshots/erp-20261103.zip` (git 제외)
 - [ ] Access Rights·Record Rules 읽기: 판매·구매·재고·회계 규칙을 architecture.md 역할 표에 추가
 - [ ] 테이블 10개 안팎 확정, `db/readonly_role.sql` 갱신
 - [ ] 도메인 지식 묶음(OKF 형식, `knowledge/`): 확정 테이블 설명, 데이터 함정, 매출·미수금 지표 정의. 형식은 architecture.md "지식 층" 참고

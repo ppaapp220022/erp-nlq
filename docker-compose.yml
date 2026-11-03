@@ -1,7 +1,8 @@
 services:
   db:
     # postgres:16 + pgvector. 같은 메이저 버전이라 기존 볼륨을 그대로 쓴다.
-    image: pgvector/pgvector:pg16
+    # 태그는 계속 갱신되므로 digest로 고정한다. 올릴 때는 스냅숏과 평가를 다시 만든다.
+    image: pgvector/pgvector:pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f
     environment:
       POSTGRES_DB: postgres
       POSTGRES_USER: odoo
@@ -12,7 +13,8 @@ services:
     volumes:
       - db-data:/var/lib/postgresql/data
   odoo:
-    image: odoo:19.0
+    # 19.0-20261102 빌드. 태그는 매일 바뀌므로 digest로 고정한다.
+    image: odoo:19.0@sha256:5e755c725b3c43cf0be16d579904e1418300db3a2c44952f928eaddbcb0cc16d
     depends_on:
       - db
     ports:
