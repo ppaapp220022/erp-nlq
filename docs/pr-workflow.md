@@ -17,8 +17,19 @@
 | 스쿼시 커밋 제목·본문 | PR 제목·PR 본문 | PR 제목이 곧 main의 커밋 제목이다. 그래서 PR 제목을 `type: 한국어 요약`으로 쓴다 |
 | 머지 후 브랜치 자동 삭제 | 켬 | 지운 브랜치를 기준으로 하던 PR은 GitHub이 main으로 옮겨 준다 |
 | "Update branch" 버튼 | 켬 | main이 앞서 나가면 PR 화면에서 바로 따라잡는다 |
+| 자동 머지 | 허용 | PR마다 켜 두면 필수 체크가 통과하는 순간 스쿼시 머지된다 |
+| main 규칙(ruleset "main 보호") | PR로만 머지, `checks`·`ai-review` 필수, 일직선 이력, 강제 푸시·삭제 금지. 관리자는 우회 가능 | 관문을 거치지 않은 커밋이 main에 들어가지 않는다 |
+| 외부 기여자 Actions 승인 | 외부 협업자 전부 승인 필요 | 퍼블릭 레포라 낯선 PR의 워크플로는 사람이 보고 나서 돈다 |
 
 PR 브랜치 안의 커밋은 스쿼시되므로 작업 중에는 편하게 나눠 커밋한다.
+
+### 외부 PR
+
+레포가 퍼블릭이라 누구나 포크해서 PR을 올릴 수 있다. 외부 PR은 자동으로 머지되지 않는다.
+- 자동 머지는 쓰기 권한이 있는 사람만 켤 수 있다.
+- 포크 PR에는 시크릿이 전달되지 않아 `ai-review`가 실패하고(실패 시 닫힘), 필수 체크가 막는다.
+- `restack`은 이 레포 안의 브랜치만 다룬다.
+- 외부 PR을 받을 때는 diff를 직접 읽고, 필요하면 내 브랜치로 옮겨 다시 PR을 연다.
 
 ## 관문
 
@@ -68,17 +79,20 @@ git rebase --update-refs origin/main
 git push --force-with-lease origin <아래 브랜치> <맨 위 브랜치>
 ```
 
-**머지:** 아래(main에 가까운 것)부터 하나씩 스쿼시 머지한다.
-1. 아래 PR을 머지한다. 브랜치가 자동으로 지워지고, 바로 위 PR의 기준은 GitHub이 main으로 옮긴다.
-2. 위 브랜치에는 아래 PR의 **원래 커밋**이 남아 있다. 스쿼시된 커밋과 내용은 같지만 커밋이 달라서, 그대로 두면 diff가 겹치거나 충돌한다. 원래 커밋을 떼어 내고 main 위로 옮긴다.
+**머지:** 아래(main에 가까운 것)부터 스쿼시 머지된다. 모든 PR에 자동 머지를 켜 두면 아래 단계가 차례로 저절로 일어난다.
+1. 아래 PR이 머지된다. 브랜치가 자동으로 지워지고, 바로 위 PR의 기준은 GitHub이 main으로 옮긴다.
+2. 위 브랜치에는 아래 PR의 **원래 커밋**이 남아 있다. 스쿼시된 커밋과 내용은 같지만 커밋이 달라서, 그대로 두면 충돌한다. [restack 워크플로](../.github/workflows/restack.yml)가 원래 커밋을 떼어 내고 main 위로 옮겨 푸시한 뒤 PR에 코멘트를 남긴다.
+3. 푸시로 `checks`·`ai-review`가 다시 돈다. 통과하면 자동 머지가 위 PR을 머지하고, 다시 1로 돌아간다.
+
+restack이 충돌로 멈추면 PR 코멘트에 적힌 명령으로 직접 옮긴다. 손으로 할 때도 같다.
 
 ```bash
 git fetch origin
-git rebase --update-refs --onto origin/main <아래 브랜치(로컬)> <위 브랜치>
+git rebase --update-refs --onto origin/main <아래 PR의 마지막 커밋> <위 브랜치>
 git push --force-with-lease origin <위 브랜치>
 ```
 
-`<아래 브랜치(로컬)>`는 원격에서 지워졌어도 로컬에 남은 것을 쓴다. 리베이스가 끝날 때까지 로컬 브랜치를 지우지 않는다.
+restack은 머지된 PR의 마지막 커밋을 품은 브랜치만 옮긴다. 아래 브랜치를 강제 푸시한 뒤 위 브랜치를 따라 옮기지 않았다면 대상에서 빠지므로, 쌓인 브랜치는 항상 `--update-refs`로 함께 옮긴다.
 
 **자동 삭제를 쓰지 않고 브랜치를 직접 지우면** GitHub은 위 PR을 옮기지 않고 닫는다([troubleshooting](troubleshooting/2026-11-03-stacked-pr-closed-on-branch-delete.md)). 브랜치는 직접 지우지 않는다. 실수로 닫혔을 때는 다음 순서로 복구한다.
 1. 지워진 기준 브랜치를 그 커밋으로 되살린다: `git push origin <커밋>:refs/heads/<브랜치>`
@@ -88,6 +102,8 @@ git push --force-with-lease origin <위 브랜치>
 ## 머지 권한
 
 - Claude는 PR을 만들고, 자기 PR 브랜치를 리베이스·강제 푸시할 수 있다. **머지, 레포·브랜치 보호 설정 변경, 시크릿 관련 작업은 사용자 승인을 받은 뒤에만** 한다.
+- PR에 자동 머지를 켜는 것(`gh pr merge <번호> --auto --squash`)이 곧 머지 승인이다. Claude는 사용자가 승인한 PR에만 켠다.
+- `RESTACK_TOKEN`은 이 레포 하나만 대상으로 하는 fine-grained 토큰이다. 권한은 Contents·Pull requests 쓰기뿐이고 Workflows 권한은 없다. 그래서 워크플로 파일을 바꾸는 쌓인 PR은 restack이 푸시하지 못하고, 손으로 옮긴다.
 - 시크릿 값은 사용자가 직접 넣는다. Claude는 값을 보지 않고 이름과 길이만 확인한다.
 
 ### 토큰 갱신
