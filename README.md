@@ -26,6 +26,15 @@ docker compose exec -T odoo odoo server --db_host db -r odoo -w "$ODOO_DB_PASSWO
 ./scripts/db-readonly-role.sh
 ```
 
+3. 영업 사원을 추가하고 주문·송장 담당자를 나눈 뒤, 평가용 기준 스냅숏을 저장한다.
+
+```bash
+./scripts/db-seed.sh
+./scripts/db-snapshot.sh save
+```
+
+다시 같은 상태로 돌아가려면 `./scripts/db-snapshot.sh restore erp-YYYYMMDD.zip`을 실행한다.
+
 http://localhost:8069 에 데모 관리자 계정으로 로그인할 수 있다.
 
 질의 계층은 `localhost:5432`에 `NLQ_RO_USER`로 접속한다. 허용 테이블은 [db/readonly_role.sql](db/readonly_role.sql)에 있다.

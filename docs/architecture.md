@@ -47,6 +47,12 @@ def execute(sql: str, user: User) -> Rows: ...                   # 권한 강제
 `domain_force = ['|', ('user_id','=',user.id), ('user_id','=',False)]`
 "자기 주문만"으로 구현하면 Odoo 화면과 결과 수가 달라진다. 담당자 없는 주문도 포함해야 한다. 구매·재고·회계 쪽 규칙은 M1에 같은 방식으로 읽고 이 표에 추가한다.
 
+**회사 조건도 함께 걸린다.** 데모 데이터는 여러 회사에 걸쳐 있고(송장은 두 회사에 13건씩), Odoo는 담당자 규칙과 별개로 `company_id IN (사용자가 속한 회사)` 조건을 건다. 영업 사원 송장 규칙을 Odoo가 계산한 실제 도메인은 다음과 같다.
+`company_id in [...] AND invoice_user_id in [uid, False] AND move_type in ('out_invoice','out_refund')`
+따라서 guard의 행 범위는 항상 "담당자 조건 AND 회사 조건"이다. Odoo 화면은 사용자가 상단에서 고른 회사만 보여 주므로, 권한 일치 검증은 "속한 회사 전체를 고른 상태"를 기준으로 한다.
+
+권한 일치는 `odoo shell`에서 `env[...].with_user(user).search_count()`로 Odoo가 보여 주는 수를 얻어 SQL 결과와 비교할 수 있다. [scripts/seed_salespeople.py](../scripts/seed_salespeople.py)의 마지막 부분이 그 예다. M3에서 XML-RPC 대신 이 방식을 쓸지 정한다(Odoo 19에서 XML-RPC는 지원 중단 예정으로 알려져 있어 확인이 필요하다).
+
 ## guard: 구문 트리 방식 (1단계)
 
 `sqlglot`으로 파싱한 트리에 대해 다음을 차례로 한다. 하나라도 걸리면 실행하지 않는다.
@@ -55,7 +61,7 @@ def execute(sql: str, user: User) -> Rows: ...                   # 권한 강제
 2. 등장하는 모든 테이블이 역할의 허용 목록에 있는지 확인한다. 서브쿼리와 CTE 안까지 본다.
 3. 모든 함수가 허용 목록에 있는지 확인한다. `set_config`, `pg_sleep`, `current_setting`, `dblink` 계열 등은 차단한다.
 4. 행 범위가 있는 테이블마다, 테이블이 등장하는 자리를 권한 조건이 걸린 서브쿼리로 바꾼다.
-   예: `sale_order` → `(SELECT * FROM sale_order WHERE user_id = :uid OR user_id IS NULL) AS sale_order`
+   예: `sale_order` → `(SELECT * FROM sale_order WHERE (user_id = :uid OR user_id IS NULL) AND company_id IN :companies) AS sale_order`
    WHERE 절에 조건을 덧붙이는 방식은 OR, 조인, 서브쿼리에서 새기 쉬워 쓰지 않는다.
 5. 바깥에 `LIMIT`을 강제한다.
 
