@@ -1,0 +1,31 @@
+# scripts/odoo_users.py 로 생성. 직접 고치지 않는다.
+
+[users."admin"]
+uid = 2
+role = "관리자"
+companies = [1, 2, 3]
+
+[users."demo"]
+uid = 5
+role = "영업 사원"
+companies = [1, 2, 3]
+
+[users."sales.kim"]
+uid = 7
+role = "영업 사원"
+companies = [1, 2, 3]
+
+[users."sales.lee"]
+uid = 8
+role = "영업 사원"
+companies = [1, 2, 3]
+
+[users."sales.park"]
+uid = 9
+role = "영업 사원"
+companies = [1, 2, 3]
+
+[users."stock.choi"]
+uid = 10
+role = "재고 담당"
+companies = [1, 2, 3]

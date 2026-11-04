@@ -15,6 +15,7 @@ docker compose up -d                 # Odoo 19 + Postgres 16(pgvector), 둘 다 
 ./scripts/db-snapshot.sh save|restore <파일>   # snapshots/ 에 DB + filestore 저장·복원
 ./scripts/db-schema.sh               # nlq_readonly가 읽는 열 목록을 db/schema.txt로 (generate 프롬프트용)
 uv run --directory backend pytest  # 백엔드 테스트 (Python 3.12, uv 필요)
+uv run --directory backend nlq "질문" --user sales.kim   # 터미널에서 질문 → SQL → 결과. --sql, --users 참고
 ./scripts/odoo-shell.sh <파일.py>     # Odoo ORM(env)으로 Python 실행. 권한 조사는 scripts/odoo_access_report.py
 ```
 
