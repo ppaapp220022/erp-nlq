@@ -21,7 +21,7 @@
 ```yaml
 id: sales-001
 area: 판매            # 판매 | 구매 | 재고 | 회계
-role: sales.kim       # 질문하는 사용자 login. 정답은 이 사용자의 권한 범위 안의 결과다
+role: sales.kim       # 질문하는 사용자 login(eval/users.toml). 정답은 이 사용자의 권한 범위 안의 결과다
 question: 이번 달 거래처별 매출 상위 5곳
 gold_sql: |
   SELECT ...
