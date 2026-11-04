@@ -74,7 +74,9 @@ Odoo가 권한을 합치는 방식(전역 규칙은 AND, 그룹 규칙은 OR)과
 |---|---|---|
 | `nlq_readonly` 역할 | 허용 테이블 밖 읽기, 모든 쓰기, 스키마·임시 테이블 생성 | [db/readonly_role.sql](../db/readonly_role.sql) |
 | `default_transaction_read_only` | 쓰기 (세션에서 끌 수 있어 보조 장치) | 같은 파일 |
-| `statement_timeout`, 행 수 제한 | 느린 쿼리, 큰 결과 | `execute` (M2) |
+| 서버 커서(`DECLARE CURSOR`) | SELECT가 아닌 문장, 여러 문장, 쓰기 CTE, `FOR UPDATE` | `execute` (M2) |
+| `statement_timeout` 10초, 행 수 1,000행 | 느린 쿼리, 큰 결과. FETCH는 한 번만 해서, SQL 안의 `set_config`로 시간 제한을 꺼도 그 문장에는 적용되지 않는다 | `execute` (M2) |
+| 접속 역할 확인 | superuser·BYPASSRLS 역할로 접속하면 실행하지 않는다 | `execute` (M2) |
 | guard | 권한 밖 행, 위험 함수, 여러 문장 | `execute` (M3) |
 
 ## RLS 방식 (2단계, M6 비교용)
