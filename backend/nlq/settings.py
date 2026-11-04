@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -35,3 +36,12 @@ def readonly_conninfo() -> dict[str, str]:
         "user": setting("NLQ_RO_USER", "nlq_readonly"),
         "password": password,
     }
+
+
+def eval_today() -> str:
+    """"오늘"로 쓸 날짜. 데모 데이터가 스냅숏에 묶여 있어서 실제 오늘 대신 고정값을 쓴다 (eval/README.md)."""
+    text = (ROOT / "eval" / "config.yaml").read_text()
+    match = re.search(r"^today:\s*(\d{4}-\d{2}-\d{2})", text, re.M)
+    if not match:
+        raise RuntimeError("eval/config.yaml에 today가 없다")
+    return match.group(1)

@@ -3,8 +3,9 @@ name = "erp-nlq"
 version = "0.1.0"
 description = "ERP(Odoo) 자연어 질의 계층. 권한은 execute()가 강제한다."
 requires-python = ">=3.12"
-# 의존성은 쓰는 시점에 추가한다 (M2: anthropic / M3: sqlglot).
+# 의존성은 쓰는 시점에 추가한다 (M3: sqlglot).
 dependencies = [
+    "anthropic>=1.0",
     "psycopg[binary]>=3.2",
 ]
 
