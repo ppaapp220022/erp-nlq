@@ -5,6 +5,6 @@
 
 from nlq.execute import execute
 from nlq.generate import generate
-from nlq.models import GeneratedSQL, Rows, User
+from nlq.models import ExecutionError, GeneratedSQL, Rows, User
 
-__all__ = ["GeneratedSQL", "Rows", "User", "execute", "generate"]
+__all__ = ["ExecutionError", "GeneratedSQL", "Rows", "User", "execute", "generate"]

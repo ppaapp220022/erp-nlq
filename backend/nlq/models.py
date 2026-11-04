@@ -25,6 +25,10 @@ class GeneratedSQL:
     clarification: str | None = None
 
 
+class ExecutionError(Exception):
+    """execute()가 SQL을 실행하지 못했다. 메시지는 DB 오류의 첫 줄이고, 개인정보를 담지 않는다."""
+
+
 @dataclass(frozen=True)
 class Rows:
     """execute()의 결과. guard가 재작성한 SQL을 함께 돌려준다(화면의 "SQL 보기"와 감사 로그용)."""
