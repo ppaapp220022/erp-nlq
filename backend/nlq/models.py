@@ -25,6 +25,10 @@ class GeneratedSQL:
     clarification: str | None = None
 
 
+class GenerationError(Exception):
+    """generate()가 SQL을 만들지 못했다 (거절, 출력 한도 초과 등)."""
+
+
 class ExecutionError(Exception):
     """execute()가 SQL을 실행하지 못했다. 메시지는 DB 오류의 첫 줄이고, 개인정보를 담지 않는다."""
 

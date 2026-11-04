@@ -1,0 +1,86 @@
+"""generate()와 프롬프트 테스트. Claude API를 부르지 않는다.
+
+실제 호출 확인은 NLQ_LIVE_API=1일 때만 돈다(비용이 들어 CI에서는 돌리지 않는다).
+"""
+
+import importlib
+import os
+import re
+from types import SimpleNamespace
+
+import pytest
+
+from nlq import GenerationError, User, generate
+from nlq.prompt import KNOWLEDGE, SCHEMA, system_prompt, user_message
+from nlq.settings import ROOT, eval_today
+
+generate_module = importlib.import_module("nlq.generate")
+
+USER = User(odoo_uid=6, login="demo", company_ids=(1,))
+
+
+def test_system_prompt_is_stable_for_caching():
+    # 질문·사용자와 무관하게 같은 바이트여야 캐시된다.
+    assert system_prompt() == system_prompt()
+    assert "{today}" not in system_prompt()
+    assert f"DATE '{eval_today()}'" in system_prompt()
+
+
+def test_system_prompt_has_schema_and_every_knowledge_doc():
+    prompt = system_prompt()
+    assert SCHEMA.read_text().strip() in prompt
+    for path in KNOWLEDGE.rglob("*.md"):
+        tag = f'<doc path="{path.relative_to(KNOWLEDGE)}">'
+        assert (tag in prompt) == (path.name != "README.md")
+
+
+def test_no_eval_question_in_prompt():
+    # 절대 규칙 4: 평가 문항은 프롬프트에 들어가지 않는다.
+    prompt = system_prompt()
+    for q in (ROOT / "eval" / "questions").glob("*.yaml"):
+        for question in re.findall(r"^question:\s*(.+)$", q.read_text(), re.M):
+            assert question.strip() not in prompt, q.name
+
+
+def test_user_message_carries_question_and_user():
+    message = user_message("내 주문 수", USER)
+    assert "내 주문 수" in message
+    assert "res_users.id = 6" in message
+
+
+def _fake_client(monkeypatch, *, stop_reason="end_turn", sql="SELECT 1"):
+    calls = []
+
+    def parse(**kwargs):
+        calls.append(kwargs)
+        parsed = generate_module._Answer(sql=sql) if stop_reason == "end_turn" else None
+        return SimpleNamespace(stop_reason=stop_reason, parsed_output=parsed)
+
+    client = SimpleNamespace(messages=SimpleNamespace(parse=parse))
+    monkeypatch.setattr(generate_module, "_client", lambda: client)
+    return calls
+
+
+def test_generate_caches_system_prompt_and_uses_configured_model(monkeypatch):
+    calls = _fake_client(monkeypatch, sql="  SELECT 1\n")
+    monkeypatch.setenv("EVAL_MODEL", "claude-opus-5-5")
+    result = generate("고유한-질문-문자열", USER)
+    assert result.sql == "SELECT 1"
+    assert result.model == "claude-opus-5-5"
+    (call,) = calls
+    assert call["model"] == "claude-opus-5-5"
+    assert call["system"][0]["cache_control"] == {"type": "ephemeral"}
+    assert "고유한-질문-문자열" not in call["system"][0]["text"]
+
+
+@pytest.mark.parametrize("stop_reason", ["refusal", "max_tokens"])
+def test_generate_raises_when_no_sql(monkeypatch, stop_reason):
+    _fake_client(monkeypatch, stop_reason=stop_reason)
+    with pytest.raises(GenerationError, match=stop_reason):
+        generate("질문", USER)
+
+
+@pytest.mark.skipif(os.environ.get("NLQ_LIVE_API") != "1", reason="NLQ_LIVE_API=1일 때만 Claude API를 부른다")
+def test_live_generate_returns_select():
+    result = generate("회사 이름 목록", USER)
+    assert result.sql.lstrip().upper().startswith(("SELECT", "WITH"))
