@@ -33,7 +33,7 @@
 | 공통 | `res_partner` | 거래처 이름 | 회사와 담당자가 한 테이블에 섞여 있다 |
 | 공통 | `res_company` | 회사 이름 | 데모에 회사가 3개 있다 |
 | 공통 | `product_product`, `product_template` | 품목 이름 | `product_template.name`은 jsonb(번역 필드)다 |
-| 보조 | `res_users` (`id, partner_id, company_id, active`만) | 담당 영업 사원 이름 연결 | 비밀번호 열은 주지 않는다 |
+| 보조 | `res_users` (`id, partner_id, company_id, active, share`만) | 담당 영업 사원 이름 연결 | 비밀번호 열은 주지 않는다 |
 
 뺀 테이블과 이유는 다음과 같다.
 - `stock_move`: 질문 예시는 `stock_picking`과 주문의 `delivery_status`·`receipt_status`로 충분하다.

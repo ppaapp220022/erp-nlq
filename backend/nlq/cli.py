@@ -24,7 +24,7 @@ MAX_CELL = 40
 
 def main(argv: list[str] | None = None) -> int:
     users = load_users()
-    parser = argparse.ArgumentParser(prog="nlq", description="ERP 자연어 질의 (M2: 행 범위 미적용)")
+    parser = argparse.ArgumentParser(prog="nlq", description="ERP 자연어 질의")
     parser.add_argument("question", nargs="?", help="질문. 없으면 한 줄씩 입력받는다")
     parser.add_argument("--user", default=DEFAULT_USER, choices=sorted(users), help=f"질문하는 사용자 (기본 {DEFAULT_USER})")
     parser.add_argument("--sql", help="생성하지 않고 이 SQL을 바로 실행한다")

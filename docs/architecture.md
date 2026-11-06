@@ -54,7 +54,7 @@ Odoo가 권한을 합치는 방식(전역 규칙은 AND, 그룹 규칙은 OR)과
 `company_id in [...] AND invoice_user_id in [uid, False] AND move_type in ('out_invoice','out_refund')`
 따라서 guard의 행 범위는 항상 "담당자 조건 AND 회사 조건"이다. Odoo 화면은 사용자가 상단에서 고른 회사만 보여 주므로, 권한 일치 검증은 "속한 회사 전체를 고른 상태"를 기준으로 한다.
 
-권한 일치는 `odoo shell`에서 `env[...].with_user(user).search_count()`로 Odoo가 보여 주는 수를 얻어 SQL 결과와 비교할 수 있다. [scripts/seed_salespeople.py](../scripts/seed_salespeople.py)의 마지막 부분이 그 예다. M3에서 XML-RPC 대신 이 방식을 쓸지 정한다(Odoo 19에서 XML-RPC는 지원 중단 예정으로 알려져 있어 확인이 필요하다).
+권한 일치는 XML-RPC 대신 `odoo shell`의 ORM으로 확인한다([ADR 0003](adr/0003-guard-rules-from-odoo-groups.md)). [scripts/odoo_counts.py](../scripts/odoo_counts.py)가 사용자·테이블마다 `with_user(user).search_count([])`(보관 포함, 속한 회사 전체)를 세고, `backend/tests/test_odoo_scope.py`가 guard를 거친 `SELECT count(*)`와 비교한다.
 
 ## guard: 구문 트리 방식 (1단계)
 
@@ -67,6 +67,12 @@ Odoo가 권한을 합치는 방식(전역 규칙은 AND, 그룹 규칙은 OR)과
    예: `sale_order` → `(SELECT * FROM sale_order WHERE (user_id = :uid OR user_id IS NULL) AND company_id IN :companies) AS sale_order`
    WHERE 절에 조건을 덧붙이는 방식은 OR, 조인, 서브쿼리에서 새기 쉬워 쓰지 않는다.
 5. 바깥에 `LIMIT`을 강제한다.
+
+구현은 [backend/nlq/guard.py](../backend/nlq/guard.py)와 [backend/nlq/identity.py](../backend/nlq/identity.py)다.
+- 2·3번은 허용 목록이다. 트리의 모든 노드(구문, 함수, 형)가 목록에 있어야 하고, 모르는 것은 거부한다. 원문이 아니라 검증한 트리를 다시 만든 SQL을 실행하고, 주석은 버린다.
+- 테이블 참조가 CTE를 가리키는지는 Postgres의 이름 규칙대로 판단한다. 재귀 아닌 `WITH` 안에서는 앞서 정의된 CTE만 보이고, 서브쿼리의 CTE는 바깥에서 보이지 않는다. 확실하지 않으면 실제 테이블로 보고 검사한다.
+- 사용자가 읽을 수 있는 테이블과 행 범위를 정하는 그룹은 Odoo에서 뽑은 `eval/users.toml`에서, 규칙은 `identity.py`에서 온다. 결정 이유는 [ADR 0003](adr/0003-guard-rules-from-odoo-groups.md).
+- `res_users`는 `company_ids`(다대다)를 열지 않아 `company_id`로 좁힌다. Odoo보다 넓어지지 않는다.
 
 ## 실행 안전장치
 

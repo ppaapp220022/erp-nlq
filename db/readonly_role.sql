@@ -38,6 +38,7 @@ GRANT SELECT ON account_move TO :"ro_user";
 -- 공통 마스터
 GRANT SELECT ON res_partner, res_company, product_product, product_template TO :"ro_user";
 -- 담당 영업 사원 연결용. 비밀번호 등 나머지 열은 주지 않는다.
-GRANT SELECT (id, partner_id, company_id, active) ON res_users TO :"ro_user";
+-- share(포털 사용자 여부)는 guard가 Odoo res_users 규칙을 옮기는 데 쓴다.
+GRANT SELECT (id, partner_id, company_id, active, share) ON res_users TO :"ro_user";
 
 COMMIT;

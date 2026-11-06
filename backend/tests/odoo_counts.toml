@@ -1,0 +1,88 @@
+# scripts/odoo_counts.py 로 생성. 직접 고치지 않는다. 읽기 권한이 없는 테이블은 빠진다.
+
+[counts."admin"]
+sale_order = 24
+sale_order_line = 50
+purchase_order = 11
+purchase_order_line = 23
+stock_picking = 49
+stock_quant = 43
+stock_location = 32
+stock_warehouse_orderpoint = 3
+account_move = 56
+res_partner = 48
+res_company = 3
+product_product = 47
+product_template = 37
+res_users = 10
+
+[counts."demo"]
+sale_order = 8
+sale_order_line = 20
+stock_picking = 49
+stock_quant = 43
+stock_location = 32
+stock_warehouse_orderpoint = 3
+account_move = 13
+res_partner = 48
+res_company = 3
+product_product = 47
+product_template = 37
+res_users = 10
+
+[counts."sales.kim"]
+sale_order = 8
+sale_order_line = 18
+stock_picking = 49
+stock_quant = 43
+stock_location = 32
+stock_warehouse_orderpoint = 3
+account_move = 13
+res_partner = 48
+res_company = 3
+product_product = 47
+product_template = 37
+res_users = 10
+
+[counts."sales.lee"]
+sale_order = 7
+sale_order_line = 14
+stock_picking = 49
+stock_quant = 43
+stock_location = 32
+stock_warehouse_orderpoint = 3
+account_move = 12
+res_partner = 48
+res_company = 3
+product_product = 47
+product_template = 37
+res_users = 10
+
+[counts."sales.park"]
+sale_order = 7
+sale_order_line = 13
+stock_picking = 49
+stock_quant = 43
+stock_location = 32
+stock_warehouse_orderpoint = 3
+account_move = 12
+res_partner = 48
+res_company = 3
+product_product = 47
+product_template = 37
+res_users = 10
+
+[counts."stock.choi"]
+sale_order = 24
+sale_order_line = 50
+purchase_order = 11
+purchase_order_line = 23
+stock_picking = 49
+stock_quant = 43
+stock_location = 32
+stock_warehouse_orderpoint = 3
+res_partner = 48
+res_company = 3
+product_product = 47
+product_template = 37
+res_users = 10

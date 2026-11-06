@@ -8,11 +8,15 @@ class User:
     """질문하는 사람. Odoo 사용자와 1:1이다.
 
     행 범위는 "담당자 조건 AND 회사 조건"이라 회사 목록도 신원의 일부다.
+    groups(행 범위를 정하는 Odoo 그룹)와 tables(Odoo가 읽기를 허락한 테이블)는 eval/users.toml에서 온다.
+    기본값이 비어 있어 아무것도 읽을 수 없다(실패 시 닫힘).
     """
 
     odoo_uid: int
     login: str
     company_ids: tuple[int, ...]
+    groups: frozenset[str] = frozenset()
+    tables: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -31,6 +35,10 @@ class GenerationError(Exception):
 
 class ExecutionError(Exception):
     """execute()가 SQL을 실행하지 못했다. 메시지는 DB 오류의 첫 줄이고, 개인정보를 담지 않는다."""
+
+
+class GuardError(ExecutionError):
+    """guard가 SQL을 거부했다. 메시지는 거부 이유이고, 자기 수정(M5)이 LLM에 다시 넣는다."""
 
 
 @dataclass(frozen=True)

@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import psycopg
 
+from nlq.guard import guard
 from nlq.models import ExecutionError, Rows, User
 from nlq.settings import readonly_conninfo
 
 STATEMENT_TIMEOUT_MS = 10_000
 MAX_ROWS = 1_000
 CONNECT_TIMEOUT_S = 5
-
-NO_ROW_SCOPE = "행 범위(담당자·회사)가 아직 걸리지 않았다. guard는 M3에서 붙는다."
 
 
 def execute(sql: str, user: User) -> Rows:
@@ -18,7 +17,9 @@ def execute(sql: str, user: User) -> Rows:
     순서 (docs/architecture.md "guard"):
       1. guard: 단일 SELECT, 테이블·함수 허용 목록, 행 범위(담당자 AND 회사) 재작성, LIMIT (M3)
       2. nlq_readonly 연결, 읽기 전용 트랜잭션, statement_timeout, 행 수 제한 (M2)
+    guard가 거부하면 GuardError(ExecutionError)를 내고 DB에 접속하지 않는다.
     """
+    sql = guard(sql, user, max_rows=MAX_ROWS)
     with _connect() as conn:
         try:
             return _run(conn, sql)
@@ -56,7 +57,6 @@ def _run(conn: psycopg.Connection, sql: str) -> Rows:
         rows=[tuple(r) for r in fetched[:MAX_ROWS]],
         executed_sql=sql,
         truncated=len(fetched) > MAX_ROWS,
-        warnings=[NO_ROW_SCOPE],
     )
 
 
