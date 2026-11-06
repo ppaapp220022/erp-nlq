@@ -42,3 +42,17 @@ GRANT SELECT ON res_partner, res_company, product_product, product_template TO :
 GRANT SELECT (id, partner_id, company_id, active, share) ON res_users TO :"ro_user";
 
 COMMIT;
+
+-- 위험 함수. guard의 함수 허용 목록이 1차로 막고, 파서 틈으로 빠져도 여기서 막는다.
+--   설정 읽기·바꾸기: set_config, current_setting (시간 제한·읽기 전용 해제, 설정 노출)
+--   지연: pg_sleep* · 문자열 SQL 실행: *_to_xml* (guard의 행 범위 재작성을 거치지 않는다)
+--   서버 파일·large object: pg_read_*file, pg_ls_*, pg_stat_file, lo_* · 다른 DB 접속: dblink*
+-- 대부분 PUBLIC에 열려 있어 역할에서만 회수하면 효과가 없다. PUBLIC에서 회수하고, 혹시 직접
+-- 준 권한도 회수한다. 함수 권한은 DB마다 따로라 이 DB에만 적용된다. Odoo는 superuser(odoo)로
+-- 접속해 권한 검사를 건너뛰므로 영향이 없다. 겹치는 이름(오버로드)과 dblink 같은 확장 함수도
+-- 실행할 때마다 pg_proc에서 다시 찾는다. 확장을 새로 설치하면 이 스크립트를 다시 실행한다.
+SELECT format('REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC, %I', p.oid::regprocedure, :'ro_user')
+FROM pg_proc p
+WHERE p.prokind IN ('f', 'p')
+  AND p.proname ~ '^(set_config|current_setting|pg_sleep.*|(query|table|cursor|schema|database)_to_xml.*|lo_.*|pg_read_(binary_)?file.*|pg_ls_.*|pg_stat_file|dblink.*)$'
+ORDER BY 1 \gexec
