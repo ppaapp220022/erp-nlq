@@ -68,27 +68,25 @@ source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
     { name = "psycopg", extra = ["binary"] },
+    { name = "pyyaml" },
     { name = "sqlglot" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "pytest" },
-    { name = "pyyaml" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "anthropic", specifier = ">=1.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "sqlglot", specifier = "==30.29.0" },
 ]
 
 [package.metadata.requires-dev]
-dev = [
-    { name = "pytest" },
-    { name = "pyyaml", specifier = ">=6.0.3" },
-]
+dev = [{ name = "pytest" }]
 
 [[package]]
 name = "h11"

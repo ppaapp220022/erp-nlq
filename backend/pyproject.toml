@@ -7,17 +7,16 @@ requires-python = ">=3.12"
 dependencies = [
     "anthropic>=1.0",
     "psycopg[binary]>=3.2",
+    "pyyaml>=6.0.3",
     "sqlglot==30.29.0",  # guard가 sqlglot이 다시 만든 SQL을 실행하므로 버전을 고정한다
 ]
 
 [project.scripts]
 nlq = "nlq.cli:main"
+nlq-eval = "nlq.evaluate:main"
 
 [dependency-groups]
-dev = [
-    "pytest",
-    "pyyaml>=6.0.3",
-]
+dev = ["pytest"]
 
 [build-system]
 requires = ["hatchling"]
