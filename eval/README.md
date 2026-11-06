@@ -48,7 +48,7 @@ uv run --directory backend nlq-eval sales-001 stock-002        # 일부만
 비교 규칙은 [backend/nlq/scoring.py](../backend/nlq/scoring.py)에 있다.
 
 - 열 이름은 무시한다. 생성 결과에 열이 더 있어도(이름·id 열을 덧붙인 경우) 정답 열이 모두 같은 행에 들어 있으면 맞다. 행은 더 있거나 모자라면 틀리다.
-- 숫자는 소수 둘째 자리로 맞춘다(5와 5.00은 같다). 자정 시각의 timestamp는 날짜와 같다.
+- 숫자는 소수 둘째 자리로 맞춘다(5와 5.00은 같다). 자정 시각의 timestamp는 날짜와 같다. 시각이 있는 timestamp는 날짜와 다르다. 질문이 날짜(주문일 등)를 물으면 날짜로 내야 맞다.
 - 행 수 제한(1,000행)으로 잘린 결과는 틀린 것으로 본다.
 - 결과는 `correct`, `wrong`, `generation_error`, `guard_rejected`, `execution_error` 중 하나다. 정답 SQL이 실행되지 않으면 채점을 멈춘다.
 - 실행 결과는 `eval/results/<시각>-<모델>.json`(git 제외)에 모델과 프롬프트 버전(시스템 프롬프트 해시)과 함께 남는다. 점수는 모델별로 따로 적고, Haiku와 Opus 점수를 섞지 않는다.
