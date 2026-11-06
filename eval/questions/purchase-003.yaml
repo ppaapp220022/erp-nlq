@@ -1,0 +1,13 @@
+id: purchase-003
+area: 구매
+role: admin
+question: San Francisco 회사가 공급사에 아직 안 낸 돈이 얼마야?
+gold_sql: |
+  SELECT -sum(m.amount_residual_signed) AS payable
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  WHERE c.name = 'My Company (San Francisco)'
+    AND m.state = 'posted'
+    AND m.move_type IN ('in_invoice', 'in_refund')
+order_matters: false
+notes: 미지급금 = 매입 송장·환불의 미결제 잔액(부가세 포함). 매입 쪽 signed 열은 음수라 부호를 뒤집는다(knowledge/metrics/receivable.md)

@@ -1,0 +1,20 @@
+id: stock-002
+area: 재고
+role: stock.choi
+question: 안전 재고보다 적게 남은 품목은? 최소 수량과 현재 수량도 같이
+gold_sql: |
+  SELECT t.name->>'en_US' AS product, o.product_min_qty,
+         coalesce((SELECT sum(q.quantity)
+                   FROM stock_quant q
+                   JOIN stock_location l ON l.id = q.location_id
+                   WHERE q.product_id = o.product_id AND l.usage = 'internal'), 0) AS on_hand
+  FROM stock_warehouse_orderpoint o
+  JOIN product_product pp ON pp.id = o.product_id
+  JOIN product_template t ON t.id = pp.product_tmpl_id
+  WHERE o.active
+    AND coalesce((SELECT sum(q.quantity)
+                  FROM stock_quant q
+                  JOIN stock_location l ON l.id = q.location_id
+                  WHERE q.product_id = o.product_id AND l.usage = 'internal'), 0) < o.product_min_qty
+order_matters: false
+notes: 재고 행이 없는 품목은 0으로 본다. 내부 조인으로 붙이면 재고가 0인 품목이 빠진다

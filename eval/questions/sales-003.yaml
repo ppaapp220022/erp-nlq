@@ -1,0 +1,16 @@
+id: sales-003
+area: 판매
+role: demo
+question: 확정 주문 기준으로 많이 팔린 품목 5개를 수량 순으로
+gold_sql: |
+  SELECT t.name->>'en_US' AS product, sum(l.product_uom_qty) AS qty
+  FROM sale_order_line l
+  JOIN sale_order o ON o.id = l.order_id
+  JOIN product_product pp ON pp.id = l.product_id
+  JOIN product_template t ON t.id = pp.product_tmpl_id
+  WHERE o.state = 'sale' AND l.display_type IS NULL
+  GROUP BY t.name->>'en_US'
+  ORDER BY qty DESC
+  LIMIT 5
+order_matters: true
+notes: 품목 이름은 jsonb(name->>'en_US'). 섹션·메모 라인(display_type)은 뺀다

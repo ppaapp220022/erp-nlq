@@ -1,0 +1,11 @@
+id: stock-003
+area: 재고
+role: sales.park
+question: 출고 준비는 끝났는데 아직 안 나간 고객 출고가 몇 건이야?
+gold_sql: |
+  SELECT count(*) AS pickings
+  FROM stock_picking p
+  JOIN stock_location d ON d.id = p.location_dest_id
+  WHERE d.usage = 'customer' AND p.state = 'assigned'
+order_matters: false
+notes: 고객 출고 = 도착 위치 usage customer. 준비됨 = assigned. 영업 사원도 재고는 회사 범위 전부 본다(ADR 0002)

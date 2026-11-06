@@ -1,0 +1,12 @@
+id: purchase-001
+area: 구매
+role: stock.choi
+question: 공급사별 확정 발주 금액 합계 (부가세 제외)
+gold_sql: |
+  SELECT p.name AS vendor, sum(o.amount_untaxed) AS amount_untaxed
+  FROM purchase_order o
+  JOIN res_partner p ON p.id = o.partner_id
+  WHERE o.state = 'purchase'
+  GROUP BY p.name
+order_matters: false
+notes: 견적 요청(draft·sent)은 발주가 아니다

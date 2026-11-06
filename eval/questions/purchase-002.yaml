@@ -1,0 +1,15 @@
+id: purchase-002
+area: 구매
+role: stock.choi
+question: 확정 발주 중 아직 입고 안 된 수량을 품목별로 알려줘
+gold_sql: |
+  SELECT t.name->>'en_US' AS product, sum(l.product_qty - l.qty_received) AS qty_to_receive
+  FROM purchase_order_line l
+  JOIN purchase_order o ON o.id = l.order_id
+  JOIN product_product pp ON pp.id = l.product_id
+  JOIN product_template t ON t.id = pp.product_tmpl_id
+  WHERE o.state = 'purchase' AND l.display_type IS NULL
+  GROUP BY t.name->>'en_US'
+  HAVING sum(l.product_qty - l.qty_received) > 0
+order_matters: false
+notes: receipt_status가 NULL인 발주도 라인 수량으로 보면 미입고다. 같은 품목이 여러 발주에 있으면 합친다

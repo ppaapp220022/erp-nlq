@@ -1,0 +1,12 @@
+id: sales-002
+area: 판매
+role: sales.lee
+question: 아직 출고가 다 끝나지 않은 확정 주문 목록 보여줘. 주문 번호, 고객, 주문일
+gold_sql: |
+  SELECT o.name, p.name AS customer, o.date_order::date AS order_date
+  FROM sale_order o
+  JOIN res_partner p ON p.id = o.partner_id
+  WHERE o.state = 'sale'
+    AND (o.delivery_status IS NULL OR o.delivery_status <> 'full')
+order_matters: false
+notes: delivery_status가 NULL인 주문도 포함한다(knowledge/pitfalls/status-null.md). <> 'full'만 쓰면 NULL 행이 빠져 틀린다
