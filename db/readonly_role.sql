@@ -41,9 +41,8 @@ GRANT SELECT ON res_partner, res_company, product_product, product_template TO :
 -- share(포털 사용자 여부)는 guard가 Odoo res_users 규칙을 옮기는 데 쓴다.
 GRANT SELECT (id, partner_id, company_id, active, share) ON res_users TO :"ro_user";
 
-COMMIT;
-
 -- 위험 함수. guard의 함수 허용 목록이 1차로 막고, 파서 틈으로 빠져도 여기서 막는다.
+-- 테이블 권한과 같은 트랜잭션에 넣어, 중간에 실패해도 일부만 회수된 상태가 남지 않게 한다.
 --   설정 읽기·바꾸기: set_config, current_setting (시간 제한·읽기 전용 해제, 설정 노출)
 --   지연: pg_sleep* · 문자열 SQL 실행: *_to_xml* (guard의 행 범위 재작성을 거치지 않는다)
 --   서버 파일·large object: pg_read_*file, pg_ls_*, pg_stat_file, lo_* · 다른 DB 접속: dblink*
@@ -56,3 +55,8 @@ FROM pg_proc p
 WHERE p.prokind IN ('f', 'p')
   AND p.proname ~ '^(set_config|current_setting|pg_sleep.*|(query|table|cursor|schema|database)_to_xml.*|lo_.*|pg_read_(binary_)?file.*|pg_ls_.*|pg_stat_file|dblink.*)$'
 ORDER BY 1 \gexec
+
+-- 목록 밖 함수(pg_advisory_lock*, pg_notify, pg_cancel_backend 등)는 PUBLIC에 열려 있다.
+-- 이들은 guard의 함수 허용 목록만 막는다 (docs/architecture.md "실행 안전장치").
+
+COMMIT;
