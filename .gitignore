@@ -6,6 +6,8 @@
 __pycache__/
 node_modules/
 snapshots/
+# 평가 실행 결과. 숫자는 PR과 plan.md에 옮겨 적는다
+eval/results/
 
 # 트러블슈팅 기록은 구글 드라이브에서 관리한다 (CLAUDE.md)
 docs/troubleshooting/

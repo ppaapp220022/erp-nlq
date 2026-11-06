@@ -36,3 +36,19 @@ notes: 매출 = 확정 고객 송장 - 환불, 부가세 제외
 - 정답 결과가 비면 안 된다. 형식과 정답 SQL 실행은 `backend/tests/test_eval_questions.py`가 검사한다.
 - 정답 숫자는 문항 파일에 적지 않는다. 확인한 값은 PR에만 남긴다.
 - "품목별"은 변형(`product_product`) 단위로 묶는다. 재고·주문·발주 라인이 변형을 가리키기 때문이다. 이름은 템플릿 이름을 보여 주므로, 변형이 여럿인 품목은 같은 이름이 여러 행 나온다.
+
+## 채점
+
+```bash
+uv run --directory backend nlq-eval                            # 전체, EVAL_MODEL(기본 claude-haiku-5-5)
+uv run --directory backend nlq-eval --model claude-opus-5-5    # 결과 표용 측정
+uv run --directory backend nlq-eval sales-001 stock-002        # 일부만
+```
+
+비교 규칙은 [backend/nlq/scoring.py](../backend/nlq/scoring.py)에 있다.
+
+- 열 이름은 무시한다. 생성 결과에 열이 더 있어도(이름·id 열을 덧붙인 경우) 정답 열이 모두 같은 행에 들어 있으면 맞다. 행은 더 있거나 모자라면 틀리다.
+- 숫자는 소수 둘째 자리로 맞춘다(5와 5.00은 같다). 자정 시각의 timestamp는 날짜와 같다.
+- 행 수 제한(1,000행)으로 잘린 결과는 틀린 것으로 본다.
+- 결과는 `correct`, `wrong`, `generation_error`, `guard_rejected`, `execution_error` 중 하나다. 정답 SQL이 실행되지 않으면 채점을 멈춘다.
+- 실행 결과는 `eval/results/<시각>-<모델>.json`(git 제외)에 모델과 프롬프트 버전(시스템 프롬프트 해시)과 함께 남는다. 점수는 모델별로 따로 적고, Haiku와 Opus 점수를 섞지 않는다.
