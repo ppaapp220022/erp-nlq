@@ -80,7 +80,7 @@ Odoo가 권한을 합치는 방식(전역 규칙은 AND, 그룹 규칙은 OR)과
 |---|---|---|
 | `nlq_readonly` 역할 | 허용 테이블 밖 읽기, 모든 쓰기, 스키마·임시 테이블 생성 | [db/readonly_role.sql](../db/readonly_role.sql) |
 | `default_transaction_read_only` | 쓰기 (세션에서 끌 수 있어 보조 장치) | 같은 파일 |
-| 위험 함수 실행 권한 회수 | guard 파서가 놓친 `set_config`·`current_setting`·`pg_sleep*`·`*_to_xml*`(문자열 SQL을 행 범위 재작성 없이 실행)·`lo_*`·서버 파일 함수·`dblink*`. 대부분 PUBLIC에 열려 있어 PUBLIC에서 회수한다. Odoo는 superuser라 영향이 없다 | 같은 파일 |
+| 위험 함수 실행 권한 회수 | guard 파서가 놓친 `set_config`·`current_setting`·`pg_sleep*`·`*_to_xml*`(문자열 SQL을 행 범위 재작성 없이 실행)·`lo_*`·서버 파일 함수·`dblink*`. 대부분 PUBLIC에 열려 있어 PUBLIC에서 회수한다. Odoo는 superuser라 영향이 없다. 목록 밖 함수(`pg_advisory_lock*`, `pg_notify`, `pg_cancel_backend` 등)는 열려 있어 guard 함수 허용 목록이 유일한 방어선이다 | 같은 파일 |
 | 서버 커서(`DECLARE CURSOR`) | SELECT가 아닌 문장, 여러 문장, 쓰기 CTE, `FOR UPDATE` | `execute` (M2) |
 | `statement_timeout` 10초, 행 수 1,000행 | 느린 쿼리, 큰 결과. `SET LOCAL`로 건다(`set_config`는 실행 권한이 없다). FETCH는 한 번만 해서, 설정을 바꿀 길이 생겨도 그 문장에는 적용되지 않는다 | `execute` (M2) |
 | 접속 역할 확인 | superuser·BYPASSRLS 역할로 접속하면 실행하지 않는다 | `execute` (M2) |

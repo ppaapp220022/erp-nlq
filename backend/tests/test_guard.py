@@ -59,6 +59,10 @@ REJECT = {
     "query_to_xml": "SELECT query_to_xml('select * from purchase_order', true, true, '')",
     "pg_read_file": "SELECT pg_read_file('/etc/passwd')",
     "dblink": "SELECT * FROM dblink('dbname=erp', 'select 1') AS t(x int)",
+    # DB에서 실행 권한을 회수하지 않아 guard만 막는 함수 (db/readonly_role.sql 끝)
+    "pg_advisory_lock": "SELECT pg_advisory_lock(1)",
+    "pg_notify": "SELECT pg_notify('c', 'x')",
+    "pg_cancel_backend": "SELECT pg_cancel_backend(1)",
     "FROM 안 함수": "SELECT * FROM generate_series(1, 10)",
     "regclass 형 변환": "SELECT 'pg_authid'::regclass",
     "자리표시자": "SELECT * FROM sale_order WHERE id = $1",
