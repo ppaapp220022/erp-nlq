@@ -31,6 +31,10 @@ def _db_available() -> bool:
 db = pytest.mark.skipif(not _db_available(), reason="nlq_readonly로 접속할 DB가 없다")
 
 
+# pg_sleep은 실행 권한이 없으므로 계산으로 시간을 끈다. 끝까지 돌면 몇 분 걸린다.
+SLOW_SQL = "SELECT count(*) FROM generate_series(1, 10000000000)"
+
+
 @pytest.fixture
 def no_guard(monkeypatch):
     monkeypatch.setattr(execute_module, "guard", lambda sql, user, max_rows: sql)
@@ -68,7 +72,7 @@ def test_statement_timeout(monkeypatch, no_guard):
     monkeypatch.setattr(execute_module, "STATEMENT_TIMEOUT_MS", 500)
     start = time.monotonic()
     with pytest.raises(ExecutionError, match="시간 제한"):
-        execute("SELECT pg_sleep(5)", USER)
+        execute(SLOW_SQL, USER)
     assert time.monotonic() - start < 3
 
 
@@ -101,8 +105,47 @@ def test_bypass_is_rejected(sql, no_guard):
 @db
 def test_timeout_cannot_be_turned_off_inside_query(monkeypatch, no_guard):
     monkeypatch.setattr(execute_module, "STATEMENT_TIMEOUT_MS", 500)
-    with pytest.raises(ExecutionError, match="시간 제한"):
-        execute("SELECT set_config('statement_timeout', '0', true), pg_sleep(5)", USER)
+    with pytest.raises(ExecutionError, match="permission denied for function set_config"):
+        execute(f"SELECT set_config('statement_timeout', '0', true), ({SLOW_SQL})", USER)
+
+
+# 위험 함수. guard의 함수 허용 목록이 뚫려도 DB가 실행 권한으로 막아야 한다 (db/readonly_role.sql).
+DANGEROUS_FUNCTIONS = {
+    "set_config": "SELECT set_config('statement_timeout', '0', false)",
+    "current_setting": "SELECT current_setting('data_directory')",
+    "pg_sleep": "SELECT pg_sleep(0)",
+    "pg_sleep_for": "SELECT pg_sleep_for('0 seconds')",
+    "pg_sleep_until": "SELECT pg_sleep_until(now())",
+    "query_to_xml": "SELECT query_to_xml('SELECT * FROM sale_order', true, false, '')",
+    "table_to_xml": "SELECT table_to_xml('sale_order', true, false, '')",
+    "database_to_xml": "SELECT database_to_xml(true, false, '')",
+    "lo_get": "SELECT lo_get(1)",
+    "lo_from_bytea": "SELECT lo_from_bytea(0, 'x')",
+    "pg_read_file": "SELECT pg_read_file('/etc/passwd')",
+    "pg_read_binary_file": "SELECT pg_read_binary_file('/etc/passwd')",
+    "pg_ls_dir": "SELECT pg_ls_dir('.')",
+    "pg_stat_file": "SELECT pg_stat_file('.')",
+}
+
+
+@db
+@pytest.mark.parametrize("sql", DANGEROUS_FUNCTIONS.values(), ids=DANGEROUS_FUNCTIONS.keys())
+def test_dangerous_function_is_denied_by_db(sql, no_guard):
+    with pytest.raises(ExecutionError, match="permission denied for function"):
+        execute(sql, USER)
+
+
+@db
+def test_no_overload_of_dangerous_functions_is_executable(no_guard):
+    # 위 목록에 없는 오버로드(current_setting(text, bool) 등)와 설치된 dblink까지 확인한다
+    rows = execute(
+        "SELECT p.oid::regprocedure::text FROM pg_proc p"
+        " WHERE p.proname ~ '^(set_config|current_setting|pg_sleep|query_to_xml|table_to_xml"
+        "|database_to_xml|lo_|pg_read_|pg_ls_|pg_stat_file|dblink)'"
+        " AND has_function_privilege(p.oid, 'EXECUTE')",
+        USER,
+    )
+    assert rows.rows == []
 
 
 def test_refuses_superuser(monkeypatch, no_guard):

@@ -81,7 +81,7 @@
 |---|---|
 | 데모 데이터 날짜가 실행일마다 바뀜 | 스냅숏, "오늘 날짜" 고정값 |
 | 평가 질문이 예시에 섞여 점수가 부풀려짐 | `eval/questions/`와 `eval/examples/` 분리 |
-| `set_config`, `pg_sleep` 등 위험 함수 | guard 함수 허용 목록, 우회 테스트에 포함 |
+| `set_config`, `pg_sleep` 등 위험 함수 | guard 함수 허용 목록, 우회 테스트에 포함. guard가 놓쳐도 `nlq_readonly`에 실행 권한이 없다(PUBLIC에서 회수) |
 | RLS가 Odoo 동작을 깨뜨림 | `nlq_readonly`에만 정책 적용, `FORCE` 금지 |
 | 채점 오판 (행 순서, 열 이름, 반올림) | 비교할 때 무시 |
 | 평가를 반복할수록 API 비용이 쌓임 | 개발 중에는 Haiku, 결과 표용 측정만 Opus. 평가 전용 키에 월 한도 |

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import psycopg
+from psycopg import sql as pgsql
 
 from nlq.guard import guard
 from nlq.models import ExecutionError, Rows, User
@@ -24,7 +25,8 @@ def execute(sql: str, user: User) -> Rows:
         try:
             return _run(conn, sql)
         finally:
-            # 사용자 SQL이 트랜잭션 안의 설정(set_config)을 바꿨을 수 있다. 결과와 상관없이 버린다.
+            # SET LOCAL로 건 설정을 버린다. 사용자 SQL은 set_config 실행 권한이 없지만(db/readonly_role.sql),
+            # 결과와 상관없이 트랜잭션을 남기지 않는다.
             conn.rollback()
 
 
@@ -41,10 +43,12 @@ def _connect() -> psycopg.Connection:
 
 
 def _run(conn: psycopg.Connection, sql: str) -> Rows:
-    conn.execute("SELECT set_config('statement_timeout', %s, true)", (str(STATEMENT_TIMEOUT_MS),))
+    # set_config는 nlq_readonly에서 실행 권한을 회수했으므로 SET LOCAL로 건다. SET은 값 자리에
+    # 바인드 변수를 받지 않아 리터럴로 넣는다.
+    conn.execute(pgsql.SQL("SET LOCAL statement_timeout = {}").format(pgsql.Literal(int(STATEMENT_TIMEOUT_MS))))
     # 서버 커서(DECLARE CURSOR)로 실행한다. DB가 SELECT 하나만 받고(쓰기 CTE·SET·여러 문장 거부),
-    # 결과는 필요한 만큼만 가져온다. FETCH는 한 번만 한다. 시간 제한은 문장마다 걸리고, 사용자 SQL이
-    # set_config로 바꾼 값은 다음 문장부터 적용되기 때문이다.
+    # 결과는 필요한 만큼만 가져온다. FETCH는 한 번만 한다. 시간 제한은 문장마다 걸리므로, 사용자 SQL이
+    # 설정을 바꿀 길이 생겨도 바뀐 값은 다음 문장부터 적용되기 때문이다.
     with conn.cursor(name="nlq") as cur:
         try:
             cur.execute(sql)
