@@ -1,0 +1,14 @@
+id: account-001
+area: 회계
+role: admin
+question: 이번 달 매출을 회사별로
+gold_sql: |
+  SELECT c.name AS company, sum(m.amount_untaxed_signed) AS revenue
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  WHERE m.state = 'posted'
+    AND m.move_type IN ('out_invoice', 'out_refund')
+    AND m.invoice_date >= '2026-11-01' AND m.invoice_date < '2026-12-01'
+  GROUP BY c.name
+order_matters: false
+notes: 매출 = 확정 고객 송장 - 환불, 부가세 제외(knowledge/metrics/revenue.md). 이번 달 = today(2026-11-03) 기준 11월. 회사 두 곳에 같은 송장이 있다

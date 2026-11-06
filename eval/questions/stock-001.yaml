@@ -1,0 +1,14 @@
+id: stock-001
+area: 재고
+role: stock.choi
+question: 지금 창고에 있는 재고를 품목별로 보여줘
+gold_sql: |
+  SELECT t.name->>'en_US' AS product, sum(q.quantity) AS quantity
+  FROM stock_quant q
+  JOIN stock_location l ON l.id = q.location_id
+  JOIN product_product pp ON pp.id = q.product_id
+  JOIN product_template t ON t.id = pp.product_tmpl_id
+  WHERE l.usage = 'internal'
+  GROUP BY t.name->>'en_US'
+order_matters: false
+notes: internal 위치만 합친다. 재고 조정·고객 위치까지 합치면 틀린다(knowledge/pitfalls/stock-quant-locations.md)

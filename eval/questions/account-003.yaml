@@ -1,0 +1,14 @@
+id: account-003
+area: 회계
+role: sales.kim
+question: 아직 돈을 못 받은 고객 송장이 회사별로 몇 건이야?
+gold_sql: |
+  SELECT c.name AS company, count(*) AS invoices
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  WHERE m.state = 'posted'
+    AND m.move_type = 'out_invoice'
+    AND m.payment_state IN ('not_paid', 'partial')
+  GROUP BY c.name
+order_matters: false
+notes: 영업 사원은 본인 담당과 담당자 없는 송장만 본다. guard(M3) 전에는 전체가 나온다

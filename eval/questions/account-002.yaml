@@ -1,0 +1,18 @@
+id: account-002
+area: 회계
+role: admin
+question: San Francisco 회사에서 만기가 지난 미수금이 있는 거래처와 금액, 큰 순서로
+gold_sql: |
+  SELECT p.name AS customer, sum(m.amount_residual_signed) AS overdue
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  JOIN res_partner p ON p.id = m.commercial_partner_id
+  WHERE c.name = 'My Company (San Francisco)'
+    AND m.state = 'posted'
+    AND m.move_type IN ('out_invoice', 'out_refund')
+    AND m.invoice_date_due < '2026-11-03'
+  GROUP BY p.name
+  HAVING sum(m.amount_residual_signed) > 0
+  ORDER BY overdue DESC
+order_matters: true
+notes: 연체 미수금 = 미수금 + 만기 < today(2026-11-03). 거래처는 commercial_partner_id로 묶는다

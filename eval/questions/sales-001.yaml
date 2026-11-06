@@ -1,0 +1,11 @@
+id: sales-001
+area: 판매
+role: sales.kim
+question: 지난달 확정된 판매 주문은 몇 건이고 부가세 빼고 얼마야?
+gold_sql: |
+  SELECT count(*) AS orders, sum(amount_untaxed) AS amount_untaxed
+  FROM sale_order
+  WHERE state = 'sale'
+    AND date_order >= '2026-10-01' AND date_order < '2026-11-01'
+order_matters: false
+notes: 수주액(주문 기준). 지난달 = today(2026-11-03) 기준 10월. 견적(draft·sent)은 뺀다
