@@ -9,6 +9,6 @@ gold_sql: |
   JOIN product_product pp ON pp.id = q.product_id
   JOIN product_template t ON t.id = pp.product_tmpl_id
   WHERE l.usage = 'internal'
-  GROUP BY t.name->>'en_US'
+  GROUP BY pp.id, t.name->>'en_US'
 order_matters: false
-notes: internal 위치만 합친다. 재고 조정·고객 위치까지 합치면 틀린다(knowledge/pitfalls/stock-quant-locations.md)
+notes: 품목은 변형(product_product) 단위다. internal 위치만 합친다. 재고 조정·고객 위치까지 합치면 틀린다(knowledge/pitfalls/stock-quant-locations.md)
