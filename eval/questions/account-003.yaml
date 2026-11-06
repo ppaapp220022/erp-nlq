@@ -11,4 +11,4 @@ gold_sql: |
     AND m.payment_state IN ('not_paid', 'partial')
   GROUP BY c.name
 order_matters: false
-notes: 영업 사원은 본인 담당과 담당자 없는 송장만 본다. guard(M3) 전에는 전체가 나온다
+notes: 영업 사원은 본인 담당과 담당자 없는 송장만 본다. 권한 조건은 guard가 건다

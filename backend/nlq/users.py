@@ -21,7 +21,13 @@ def load_users() -> dict[str, Persona]:
     data = tomllib.loads(USERS_FILE.read_text())
     return {
         login: Persona(
-            user=User(odoo_uid=entry["uid"], login=login, company_ids=tuple(entry["companies"])),
+            user=User(
+                odoo_uid=entry["uid"],
+                login=login,
+                company_ids=tuple(entry["companies"]),
+                groups=frozenset(entry["groups"]),
+                tables=frozenset(entry["tables"]),
+            ),
             role=entry["role"],
         )
         for login, entry in data["users"].items()

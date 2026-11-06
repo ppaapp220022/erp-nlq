@@ -1,7 +1,7 @@
 """평가 문항(eval/questions/) 형식 검사와 정답 SQL 실행 확인.
 
-정답 SQL 실행은 로컬 DB(nlq_readonly)가 있어야 돈다. 행 범위(guard)는 M3에 붙으므로,
-지금은 정답 SQL이 실행되고 결과가 비지 않는지만 본다.
+정답 SQL 실행은 로컬 DB(nlq_readonly)가 있어야 돈다. execute()를 거치므로 guard가 role 사용자의
+행 범위를 건 결과가 비지 않는지 본다.
 """
 
 import re

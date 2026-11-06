@@ -3,10 +3,11 @@ name = "erp-nlq"
 version = "0.1.0"
 description = "ERP(Odoo) 자연어 질의 계층. 권한은 execute()가 강제한다."
 requires-python = ">=3.12"
-# 의존성은 쓰는 시점에 추가한다 (M3: sqlglot).
+# 의존성은 쓰는 시점에 추가한다.
 dependencies = [
     "anthropic>=1.0",
     "psycopg[binary]>=3.2",
+    "sqlglot==30.29.0",  # guard가 sqlglot이 다시 만든 SQL을 실행하므로 버전을 고정한다
 ]
 
 [project.scripts]

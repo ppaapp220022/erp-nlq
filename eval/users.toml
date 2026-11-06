@@ -4,28 +4,40 @@
 uid = 2
 role = "관리자"
 companies = [1, 2, 3]
+groups = ["account.group_account_invoice", "base.group_erp_manager", "base.group_user", "purchase.group_purchase_user", "sales_team.group_sale_salesman", "sales_team.group_sale_salesman_all_leads", "stock.group_stock_user"]
+tables = ["account_move", "product_product", "product_template", "purchase_order", "purchase_order_line", "res_company", "res_partner", "res_users", "sale_order", "sale_order_line", "stock_location", "stock_picking", "stock_quant", "stock_warehouse_orderpoint"]
 
 [users."demo"]
 uid = 5
 role = "영업 사원"
 companies = [1, 2, 3]
+groups = ["base.group_user", "sales_team.group_sale_salesman"]
+tables = ["account_move", "product_product", "product_template", "res_company", "res_partner", "res_users", "sale_order", "sale_order_line", "stock_location", "stock_picking", "stock_quant", "stock_warehouse_orderpoint"]
 
 [users."sales.kim"]
 uid = 7
 role = "영업 사원"
 companies = [1, 2, 3]
+groups = ["base.group_user", "sales_team.group_sale_salesman"]
+tables = ["account_move", "product_product", "product_template", "res_company", "res_partner", "res_users", "sale_order", "sale_order_line", "stock_location", "stock_picking", "stock_quant", "stock_warehouse_orderpoint"]
 
 [users."sales.lee"]
 uid = 8
 role = "영업 사원"
 companies = [1, 2, 3]
+groups = ["base.group_user", "sales_team.group_sale_salesman"]
+tables = ["account_move", "product_product", "product_template", "res_company", "res_partner", "res_users", "sale_order", "sale_order_line", "stock_location", "stock_picking", "stock_quant", "stock_warehouse_orderpoint"]
 
 [users."sales.park"]
 uid = 9
 role = "영업 사원"
 companies = [1, 2, 3]
+groups = ["base.group_user", "sales_team.group_sale_salesman"]
+tables = ["account_move", "product_product", "product_template", "res_company", "res_partner", "res_users", "sale_order", "sale_order_line", "stock_location", "stock_picking", "stock_quant", "stock_warehouse_orderpoint"]
 
 [users."stock.choi"]
 uid = 10
 role = "재고 담당"
 companies = [1, 2, 3]
+groups = ["base.group_user", "stock.group_stock_user"]
+tables = ["product_product", "product_template", "purchase_order", "purchase_order_line", "res_company", "res_partner", "res_users", "sale_order", "sale_order_line", "stock_location", "stock_picking", "stock_quant", "stock_warehouse_orderpoint"]
