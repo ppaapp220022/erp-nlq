@@ -6,17 +6,20 @@ requires-python = ">=3.12"
 # 의존성은 쓰는 시점에 추가한다.
 dependencies = [
     "anthropic>=1.0",
+    "fastapi==0.143.2",  # 10-18~23에 릴리스가 몰려 그 앞 버전으로 고정한다
     "psycopg[binary]>=3.2",
     "pyyaml>=6.0.3",
     "sqlglot==30.29.0",  # guard가 sqlglot이 다시 만든 SQL을 실행하므로 버전을 고정한다
+    "uvicorn==0.54.0",
 ]
 
 [project.scripts]
 nlq = "nlq.cli:main"
 nlq-eval = "nlq.evaluate:main"
+nlq-api = "nlq.api:main"
 
 [dependency-groups]
-dev = ["pytest"]
+dev = ["httpx", "pytest"]
 
 [build-system]
 requires = ["hatchling"]
@@ -24,3 +27,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["nlq"]
+
+[tool.uv]
+# fastapi가 끌어오는 starlette도 두 주 넘게 지난 버전으로 묶는다
+constraint-dependencies = ["starlette==1.8.0"]

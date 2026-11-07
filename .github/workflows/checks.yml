@@ -37,3 +37,13 @@ jobs:
       - name: backend 테스트
         # M3부터 권한 우회 테스트가 여기서 돈다.
         run: uv run --directory backend --locked pytest -q
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: web 빌드 (타입 검사 포함)
+        working-directory: web
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build

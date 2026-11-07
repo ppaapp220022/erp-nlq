@@ -31,7 +31,7 @@ def generate(question: str, user: User) -> GeneratedSQL: ...   # LLM. 실패해�
 def execute(sql: str, user: User) -> Rows: ...                   # 권한 강제 + 실행. DB로 가는 유일한 길
 ```
 
-나중에 각각 `POST /generate`, `POST /execute`로 감싼다. 화면은 두 API만 안다.
+M4에서 [backend/nlq/api.py](../backend/nlq/api.py)(FastAPI)가 각각 `POST /generate`, `POST /execute`로 감쌌다. 화면은 이 두 API와 사용자 목록(`GET /users`, login과 역할 이름만)만 안다. 화면에는 로그인이 없고 사용자를 역할 선택으로 고르므로, API는 127.0.0.1에만 연다. 질문·SQL·결과는 로그에 남기지 않는다.
 
 ## 신원과 역할
 
