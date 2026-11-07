@@ -1,0 +1,13 @@
+id: stock-008
+area: 재고
+role: stock.choi
+question: 아직 처리되지 않은 입고 문서를 상태별로 몇 건인지
+gold_sql: |
+  SELECT p.state, count(*) AS pickings
+  FROM stock_picking p
+  JOIN stock_location s ON s.id = p.location_id
+  WHERE s.usage = 'supplier'
+    AND p.state NOT IN ('done', 'cancel')
+  GROUP BY p.state
+order_matters: false
+notes: 입고 = 출발 위치 usage supplier. 처리 안 됨 = done·cancel이 아닌 것. picking_type은 허용 테이블이 아니라 위치로 판단한다

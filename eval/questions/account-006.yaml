@@ -1,0 +1,14 @@
+id: account-006
+area: 회계
+role: sales.lee
+question: 내가 담당한 고객 송장 목록. 회사, 송장 번호, 고객, 송장일, 부가세 포함 금액
+gold_sql: |
+  SELECT c.name AS company, m.name, p.name AS customer, m.invoice_date, m.amount_total
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  JOIN res_partner p ON p.id = m.commercial_partner_id
+  WHERE m.state = 'posted'
+    AND m.move_type = 'out_invoice'
+    AND m.invoice_user_id = 8
+order_matters: false
+notes: 질문의 "내가"는 질문한 사용자(res_users.id 8). 송장 담당자는 invoice_user_id. 영업 사원 범위에는 담당자 없는 송장도 들어오므로 직접 걸어야 맞다. 환불은 송장이 아니다

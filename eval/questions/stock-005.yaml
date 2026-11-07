@@ -1,0 +1,12 @@
+id: stock-005
+area: 재고
+role: stock.choi
+question: 창고 위치별로 재고 수량 합계
+gold_sql: |
+  SELECT l.complete_name AS location, sum(q.quantity) AS quantity
+  FROM stock_quant q
+  JOIN stock_location l ON l.id = q.location_id
+  WHERE l.usage = 'internal'
+  GROUP BY l.id, l.complete_name
+order_matters: false
+notes: 위치 이름은 전체 경로(complete_name). 고객·재고 조정 같은 가상 위치는 창고가 아니다

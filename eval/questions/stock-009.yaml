@@ -1,0 +1,13 @@
+id: stock-009
+area: 재고
+role: stock.choi
+question: 지난 30일 동안 완료된 고객 출고는 몇 건이야?
+gold_sql: |
+  SELECT count(*) AS pickings
+  FROM stock_picking p
+  JOIN stock_location d ON d.id = p.location_dest_id
+  WHERE d.usage = 'customer'
+    AND p.state = 'done'
+    AND p.date_done >= '2026-10-04' AND p.date_done < '2026-11-04'
+order_matters: false
+notes: 지난 30일 = 2026-10-04 ~ 11-03(오늘 포함). 완료 시각은 date_done. scheduled_date로 자르면 다른 건이 들어온다

@@ -1,0 +1,17 @@
+id: account-010
+area: 회계
+role: admin
+question: San Francisco 회사에서 매출이 가장 큰 거래처 한 곳과 그 매출
+gold_sql: |
+  SELECT p.name AS customer, sum(m.amount_untaxed_signed) AS revenue
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  JOIN res_partner p ON p.id = m.commercial_partner_id
+  WHERE c.name = 'My Company (San Francisco)'
+    AND m.state = 'posted'
+    AND m.move_type IN ('out_invoice', 'out_refund')
+  GROUP BY p.id, p.name
+  ORDER BY revenue DESC
+  LIMIT 1
+order_matters: true
+notes: 거래처 매출은 환불을 뺀 값이다. 송장만 합치면 다른 거래처가 1위가 될 수 있다

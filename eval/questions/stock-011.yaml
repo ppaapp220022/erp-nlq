@@ -1,0 +1,14 @@
+id: stock-011
+area: 재고
+role: stock.choi
+question: 원가가 등록된 품목만 놓고 San Francisco 회사 창고 재고의 원가 기준 금액 합계
+gold_sql: |
+  SELECT sum(q.quantity * (pp.standard_price->>'1')::numeric) AS stock_value
+  FROM stock_quant q
+  JOIN stock_location l ON l.id = q.location_id
+  JOIN product_product pp ON pp.id = q.product_id
+  WHERE l.usage = 'internal'
+    AND q.company_id = 1
+    AND pp.standard_price->>'1' IS NOT NULL
+order_matters: false
+notes: 원가 standard_price는 회사 id를 키로 하는 jsonb다(San Francisco = 1, knowledge/pitfalls/translated-jsonb.md). 원가 없는 품목은 SUM이 무시하므로 IS NOT NULL이 없어도 같다

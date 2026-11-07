@@ -1,0 +1,15 @@
+id: account-012
+area: 회계
+role: admin
+question: 오늘부터 30일 안에 지급 기한이 오는 미지급 매입 송장. 회사, 송장 번호, 공급사, 기한, 남은 금액
+gold_sql: |
+  SELECT c.name AS company, m.name, p.name AS vendor, m.invoice_date_due, m.amount_residual
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  JOIN res_partner p ON p.id = m.commercial_partner_id
+  WHERE m.state = 'posted'
+    AND m.move_type = 'in_invoice'
+    AND m.amount_residual > 0
+    AND m.invoice_date_due >= '2026-11-03' AND m.invoice_date_due <= '2026-12-03'
+order_matters: false
+notes: 30일 안 = 2026-11-03 ~ 12-03. 회사 두 곳에 같은 번호의 송장이 따로 있어서 회사 열이 있어야 구분된다(knowledge/pitfalls/multi-company.md)

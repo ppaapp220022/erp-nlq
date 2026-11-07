@@ -1,0 +1,14 @@
+id: account-013
+area: 회계
+role: sales.park
+question: 이번 달 발행된 고객 송장이 회사별로 몇 건이야?
+gold_sql: |
+  SELECT c.name AS company, count(*) AS invoices
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  WHERE m.state = 'posted'
+    AND m.move_type = 'out_invoice'
+    AND m.invoice_date >= '2026-11-01' AND m.invoice_date < '2026-12-01'
+  GROUP BY c.name
+order_matters: false
+notes: 영업 사원은 본인 담당과 담당자 없는 송장만 본다. 권한 조건은 guard가 건다
