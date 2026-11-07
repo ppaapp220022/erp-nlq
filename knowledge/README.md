@@ -27,3 +27,5 @@
 | 수주액(주문 기준) | `sale.report` Sales Orders, `price_subtotal` | 27,660.50 | — |
 | 미수금 | `account.move` To pay, 고객 송장·환불 `amount_residual_signed` | 52,074.00 | 49,299.00 |
 | 연체 미수금(만기 < 2026-11-03) | 위 + `invoice_date_due < 2026-11-03` | 34,750.00 | 34,750.00 |
+
+M5에서는 같은 비교를 사용자마다(영업 사원은 그 사람이 볼 수 있는 범위로) 다시 하고, 질의 시스템의 답까지 대조한다. Odoo 숫자는 `scripts/odoo_report_totals.py`가 [eval/odoo_reports.toml](../eval/odoo_reports.toml)로 뽑고, `nlq-report`가 대조한다. 결과는 [docs/plan.md](../docs/plan.md) "M5 Odoo 보고서 대조".

@@ -1,0 +1,63 @@
+# scripts/odoo_report_totals.py 로 생성. 직접 고치지 않는다. 읽기 권한이 없는 보고서와 값이 없는 회사는 빠진다.
+today = "2026-11-03"
+
+[reports."admin".revenue]
+"My Company (San Francisco)" = 47574.00
+"My US Company" = 47574.00
+
+[reports."admin".revenue_this_month]
+"My Company (San Francisco)" = 55000.00
+"My US Company" = 55000.00
+
+[reports."admin".order_amount]
+"My Company (San Francisco)" = 27660.50
+
+[reports."admin".receivable]
+"My Company (San Francisco)" = 52074.00
+"My US Company" = 49299.00
+
+[reports."admin".overdue_receivable]
+"My Company (San Francisco)" = 34750.00
+"My US Company" = 34750.00
+
+[reports."demo".order_amount]
+"My Company (San Francisco)" = 8694.00
+
+[reports."demo".receivable]
+"My Company (San Francisco)" = 80824.00
+"My US Company" = 34955.25
+
+[reports."demo".overdue_receivable]
+"My US Company" = 1000.00
+
+[reports."sales.kim".order_amount]
+"My Company (San Francisco)" = 9382.00
+
+[reports."sales.kim".receivable]
+"My Company (San Francisco)" = 89174.00
+"My US Company" = 78049.00
+
+[reports."sales.kim".overdue_receivable]
+"My Company (San Francisco)" = 31750.00
+
+[reports."sales.lee".order_amount]
+"My Company (San Francisco)" = 4195.50
+
+[reports."sales.lee".receivable]
+"My Company (San Francisco)" = 51174.00
+"My US Company" = 85705.25
+
+[reports."sales.lee".overdue_receivable]
+"My Company (San Francisco)" = 2000.00
+"My US Company" = 31750.00
+
+[reports."sales.park".order_amount]
+"My Company (San Francisco)" = 5389.00
+
+[reports."sales.park".receivable]
+"My Company (San Francisco)" = 38424.00
+"My US Company" = 47705.25
+
+[reports."sales.park".overdue_receivable]
+"My Company (San Francisco)" = 1000.00
+"My US Company" = 2000.00
