@@ -1,0 +1,11 @@
+id: ex-account-003
+area: 회계
+role: admin
+question: 오늘 만기인 고객 송장. 회사, 번호, 고객, 남은 금액
+sql: |
+  SELECT c.name AS company, m.name, p.name AS customer, m.amount_residual
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  JOIN res_partner p ON p.id = m.commercial_partner_id
+  WHERE m.state = 'posted' AND m.move_type = 'out_invoice' AND m.invoice_date_due = '2026-11-03'
+notes: 만기는 invoice_date_due, 오늘 = 2026-11-03

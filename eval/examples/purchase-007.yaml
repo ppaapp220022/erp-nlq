@@ -1,0 +1,9 @@
+id: ex-purchase-007
+area: 구매
+role: stock.choi
+question: 확정 발주 한 건의 평균 금액(부가세 제외)
+sql: |
+  SELECT avg(amount_untaxed) AS avg_amount
+  FROM purchase_order
+  WHERE state = 'purchase'
+notes: 확정 발주 = purchase

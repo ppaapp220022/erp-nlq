@@ -1,0 +1,11 @@
+id: ex-stock-003
+area: 재고
+role: sales.kim
+question: 고객 출고를 상태별로 몇 건인지
+sql: |
+  SELECT p.state, count(*) AS pickings
+  FROM stock_picking p
+  JOIN stock_location d ON d.id = p.location_dest_id
+  WHERE d.usage = 'customer'
+  GROUP BY p.state
+notes: 고객 출고 = 도착 위치 usage customer. picking_type은 열려 있지 않다

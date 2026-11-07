@@ -1,0 +1,13 @@
+id: ex-sales-002
+area: 판매
+role: admin
+question: 주문 라인이 가장 많은 확정 주문 3건과 라인 수
+sql: |
+  SELECT o.name, count(*) AS lines
+  FROM sale_order_line l
+  JOIN sale_order o ON o.id = l.order_id
+  WHERE o.state = 'sale' AND l.display_type IS NULL
+  GROUP BY o.id, o.name
+  ORDER BY lines DESC
+  LIMIT 3
+notes: 섹션·메모 라인(display_type)은 세지 않는다

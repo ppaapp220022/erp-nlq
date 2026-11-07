@@ -1,0 +1,11 @@
+id: ex-account-001
+area: 회계
+role: admin
+question: 회사별 미수금 총액
+sql: |
+  SELECT c.name AS company, sum(m.amount_residual_signed) AS receivable
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  WHERE m.state = 'posted' AND m.move_type IN ('out_invoice', 'out_refund')
+  GROUP BY c.name
+notes: 미수금 = 고객 송장·환불 잔액 합계(knowledge/metrics/receivable.md)

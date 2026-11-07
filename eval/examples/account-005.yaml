@@ -1,0 +1,13 @@
+id: ex-account-005
+area: 회계
+role: admin
+question: 회사별 송장 대비 환불 비율(부가세 제외 금액 기준)
+sql: |
+  SELECT c.name AS company,
+         -sum(m.amount_untaxed_signed) FILTER (WHERE m.move_type = 'out_refund')
+           / sum(m.amount_untaxed_signed) FILTER (WHERE m.move_type = 'out_invoice') AS refund_ratio
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  WHERE m.state = 'posted' AND m.move_type IN ('out_invoice', 'out_refund')
+  GROUP BY c.name
+notes: 환불 signed 금액은 음수라 부호를 뒤집는다

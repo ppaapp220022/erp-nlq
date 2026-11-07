@@ -1,0 +1,13 @@
+id: ex-stock-005
+area: 재고
+role: stock.choi
+question: 창고에 재고가 있는데 원가가 등록되지 않은 품목
+sql: |
+  SELECT DISTINCT t.name->>'en_US' AS product
+  FROM stock_quant q
+  JOIN stock_location l ON l.id = q.location_id
+  JOIN product_product pp ON pp.id = q.product_id
+  JOIN product_template t ON t.id = pp.product_tmpl_id
+  WHERE l.usage = 'internal' AND q.quantity > 0
+    AND pp.standard_price->>(q.company_id::text) IS NULL
+notes: 원가 standard_price는 회사 id를 키로 하는 jsonb(knowledge/pitfalls/translated-jsonb.md)

@@ -1,0 +1,14 @@
+id: ex-stock-004
+area: 재고
+role: stock.choi
+question: 출고 문서가 가장 많은 거래처와 건수
+sql: |
+  SELECT rp.name AS partner, count(*) AS pickings
+  FROM stock_picking p
+  JOIN stock_location d ON d.id = p.location_dest_id
+  JOIN res_partner rp ON rp.id = p.partner_id
+  WHERE d.usage = 'customer'
+  GROUP BY rp.name
+  ORDER BY pickings DESC
+  LIMIT 1
+notes: partner_id가 없는 출고는 빠진다

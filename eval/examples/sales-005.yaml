@@ -1,0 +1,12 @@
+id: ex-sales-005
+area: 판매
+role: admin
+question: 주문 단가가 품목 판매가와 다른 확정 주문 라인. 주문 번호, 품목, 주문 단가, 판매가
+sql: |
+  SELECT o.name, t.name->>'en_US' AS product, l.price_unit, t.list_price
+  FROM sale_order_line l
+  JOIN sale_order o ON o.id = l.order_id
+  JOIN product_product pp ON pp.id = l.product_id
+  JOIN product_template t ON t.id = pp.product_tmpl_id
+  WHERE o.state = 'sale' AND l.display_type IS NULL AND l.price_unit <> t.list_price
+notes: 판매가는 product_template.list_price. 변형별 추가 금액은 보지 않는다

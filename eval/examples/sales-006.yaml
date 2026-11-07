@@ -1,0 +1,10 @@
+id: ex-sales-006
+area: 판매
+role: admin
+question: 판매팀별 확정 주문 건수
+sql: |
+  SELECT team_id, count(*) AS orders
+  FROM sale_order
+  WHERE state = 'sale'
+  GROUP BY team_id
+notes: 판매팀 이름 테이블은 열려 있지 않아 team_id로만 보여 준다

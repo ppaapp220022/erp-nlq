@@ -1,0 +1,12 @@
+id: ex-purchase-008
+area: 구매
+role: stock.choi
+question: 품목별로 지금까지 받은 가장 낮은 매입 단가 (견적 요청 포함)
+sql: |
+  SELECT t.name->>'en_US' AS product, min(l.price_unit) AS min_price
+  FROM purchase_order_line l
+  JOIN product_product pp ON pp.id = l.product_id
+  JOIN product_template t ON t.id = pp.product_tmpl_id
+  WHERE l.display_type IS NULL
+  GROUP BY pp.id, t.name->>'en_US'
+notes: 단가는 purchase_order_line.price_unit

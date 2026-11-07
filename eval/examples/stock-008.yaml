@@ -1,0 +1,15 @@
+id: ex-stock-008
+area: 재고
+role: sales.park
+question: 창고 재고가 가장 많은 품목 3개
+sql: |
+  SELECT t.name->>'en_US' AS product, sum(q.quantity) AS quantity
+  FROM stock_quant q
+  JOIN stock_location l ON l.id = q.location_id
+  JOIN product_product pp ON pp.id = q.product_id
+  JOIN product_template t ON t.id = pp.product_tmpl_id
+  WHERE l.usage = 'internal'
+  GROUP BY pp.id, t.name->>'en_US'
+  ORDER BY quantity DESC
+  LIMIT 3
+notes: internal 위치만 합친다(knowledge/pitfalls/stock-quant-locations.md)

@@ -1,0 +1,11 @@
+id: ex-stock-006
+area: 재고
+role: stock.choi
+question: 재보충 규칙 목록. 품목, 최소 수량, 최대 수량
+sql: |
+  SELECT t.name->>'en_US' AS product, o.product_min_qty, o.product_max_qty
+  FROM stock_warehouse_orderpoint o
+  JOIN product_product pp ON pp.id = o.product_id
+  JOIN product_template t ON t.id = pp.product_tmpl_id
+  WHERE o.active
+notes: 재보충 규칙 = stock_warehouse_orderpoint

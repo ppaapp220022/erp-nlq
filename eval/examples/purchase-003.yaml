@@ -1,0 +1,14 @@
+id: ex-purchase-003
+area: 구매
+role: stock.choi
+question: Ready Mat에 확정 발주한 품목과 수량
+sql: |
+  SELECT t.name->>'en_US' AS product, sum(l.product_qty) AS qty
+  FROM purchase_order_line l
+  JOIN purchase_order o ON o.id = l.order_id
+  JOIN res_partner p ON p.id = o.partner_id
+  JOIN product_product pp ON pp.id = l.product_id
+  JOIN product_template t ON t.id = pp.product_tmpl_id
+  WHERE o.state = 'purchase' AND p.name = 'Ready Mat' AND l.display_type IS NULL
+  GROUP BY pp.id, t.name->>'en_US'
+notes: 품목은 변형(product_product) 단위

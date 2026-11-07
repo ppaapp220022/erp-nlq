@@ -1,0 +1,10 @@
+id: ex-sales-004
+area: 판매
+role: demo
+question: 아직 청구할 것이 남은 확정 주문. 주문 번호와 고객
+sql: |
+  SELECT o.name, p.name AS customer
+  FROM sale_order o
+  JOIN res_partner p ON p.id = o.partner_id
+  WHERE o.state = 'sale' AND o.invoice_status = 'to invoice'
+notes: 주문과 송장은 직접 이어지지 않는다. 청구 진행은 invoice_status로 본다(knowledge/pitfalls/unlinked-documents.md)

@@ -1,0 +1,11 @@
+id: ex-account-002
+area: 회계
+role: admin
+question: 회사별 고객 송장 한 건의 평균 금액(부가세 제외)
+sql: |
+  SELECT c.name AS company, avg(m.amount_untaxed) AS avg_amount
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  WHERE m.state = 'posted' AND m.move_type = 'out_invoice'
+  GROUP BY c.name
+notes: 송장 한 건 금액은 부호 없는 열. 환불은 송장이 아니다

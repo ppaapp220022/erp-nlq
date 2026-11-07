@@ -1,0 +1,12 @@
+id: ex-stock-007
+area: 재고
+role: stock.choi
+question: 오늘 들어올 예정인 입고 문서
+sql: |
+  SELECT p.name, p.state
+  FROM stock_picking p
+  JOIN stock_location s ON s.id = p.location_id
+  WHERE s.usage = 'supplier'
+    AND p.scheduled_date >= '2026-11-03' AND p.scheduled_date < '2026-11-04'
+    AND p.state NOT IN ('done', 'cancel')
+notes: 입고 = 출발 위치 usage supplier. 오늘 = 2026-11-03, timestamp라 날짜 경계로 자른다

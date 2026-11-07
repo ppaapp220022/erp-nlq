@@ -1,0 +1,12 @@
+id: ex-sales-007
+area: 판매
+role: sales.park
+question: 가장 오래된 확정 주문은 언제 누구 주문이야?
+sql: |
+  SELECT o.name, p.name AS customer, o.date_order::date AS order_date
+  FROM sale_order o
+  JOIN res_partner p ON p.id = o.partner_id
+  WHERE o.state = 'sale'
+  ORDER BY o.date_order
+  LIMIT 1
+notes: 주문일은 date_order(timestamp). 날짜를 물으면 ::date로 낸다

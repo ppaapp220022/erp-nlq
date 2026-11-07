@@ -1,0 +1,10 @@
+id: ex-account-007
+area: 회계
+role: admin
+question: 담당 영업 사원이 없는 고객 송장과 환불. 회사, 번호, 종류
+sql: |
+  SELECT c.name AS company, m.name, m.move_type
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  WHERE m.state = 'posted' AND m.move_type IN ('out_invoice', 'out_refund') AND m.invoice_user_id IS NULL
+notes: 송장 담당자는 invoice_user_id

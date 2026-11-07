@@ -1,0 +1,10 @@
+id: ex-sales-008
+area: 판매
+role: admin
+question: Gemini Furniture의 확정 주문 건수와 부가세 포함 금액
+sql: |
+  SELECT count(*) AS orders, sum(o.amount_total) AS amount_total
+  FROM sale_order o
+  JOIN res_partner p ON p.id = o.partner_id
+  WHERE o.state = 'sale' AND p.commercial_partner_id = (SELECT id FROM res_partner WHERE name = 'Gemini Furniture' AND is_company)
+notes: 거래처는 회사 단위(commercial_partner_id). 부가세 포함은 amount_total

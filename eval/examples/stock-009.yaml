@@ -1,0 +1,10 @@
+id: ex-stock-009
+area: 재고
+role: stock.choi
+question: 예정일보다 늦게 완료된 고객 출고. 문서 번호, 예정일, 완료일
+sql: |
+  SELECT p.name, p.scheduled_date::date AS scheduled, p.date_done::date AS done
+  FROM stock_picking p
+  JOIN stock_location d ON d.id = p.location_dest_id
+  WHERE d.usage = 'customer' AND p.state = 'done' AND p.date_done::date > p.scheduled_date::date
+notes: 예정일 scheduled_date, 완료 시각 date_done. 둘 다 timestamp라 날짜로 비교한다

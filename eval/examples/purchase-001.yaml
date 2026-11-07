@@ -1,0 +1,13 @@
+id: ex-purchase-001
+area: 구매
+role: stock.choi
+question: 라인이 가장 많은 발주와 라인 수 (견적 요청 포함)
+sql: |
+  SELECT o.name, count(*) AS lines
+  FROM purchase_order_line l
+  JOIN purchase_order o ON o.id = l.order_id
+  WHERE l.display_type IS NULL
+  GROUP BY o.id, o.name
+  ORDER BY lines DESC
+  LIMIT 1
+notes: 같은 수가 여럿이면 하나만 나온다
