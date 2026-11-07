@@ -3,10 +3,11 @@
     uv run --directory backend nlq-eval                       # 전체, EVAL_MODEL(기본 Haiku)
     uv run --directory backend nlq-eval --model claude-opus-5-5   # 결과 표용 측정
     uv run --directory backend nlq-eval sales-001 stock-002   # 일부만
+    uv run --directory backend nlq-eval --prompt schema       # 비교 기준 1: OKF 묶음 없이
 
 문항마다 generate()로 SQL을 만들고, 생성 SQL과 정답 SQL을 같은 사용자로 execute()해 결과를 비교한다.
 DB와 API로 가는 길은 generate()와 execute()뿐이다. 결과는 eval/results/에 JSON으로 남긴다(git 제외).
-Haiku 점수와 Opus 점수를 섞지 않는다. 결과 파일에 모델과 프롬프트 버전이 함께 남는다.
+Haiku 점수와 Opus 점수를 섞지 않는다. 결과 파일에 모델과 프롬프트 변형·버전이 함께 남는다.
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ import yaml
 from nlq import ExecutionError, GenerationError, execute, generate
 from nlq.generate import DEFAULT_MODEL
 from nlq.models import GuardError
-from nlq.prompt import system_prompt
+from nlq.prompt import DEFAULT_VARIANT, VARIANTS, prompt_variant, system_prompt
 from nlq.scoring import matches
 from nlq.settings import ROOT, eval_today, setting
 from nlq.users import load_users
@@ -109,14 +110,18 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="nlq-eval", description="평가 문항 채점")
     parser.add_argument("ids", nargs="*", help="돌릴 문항 id. 없으면 전체")
     parser.add_argument("--model", help=f"Claude 모델 ID (기본: EVAL_MODEL, 없으면 {DEFAULT_MODEL})")
+    parser.add_argument("--prompt", choices=VARIANTS, help=f"프롬프트 변형 (기본: NLQ_PROMPT, 없으면 {DEFAULT_VARIANT})")
     parser.add_argument("--jobs", type=int, default=4, help="동시에 돌릴 문항 수")
     args = parser.parse_args(argv)
 
     if args.model:
         os.environ["EVAL_MODEL"] = args.model
+    if args.prompt:
+        os.environ["NLQ_PROMPT"] = args.prompt
     model = setting("EVAL_MODEL", DEFAULT_MODEL)
+    variant = prompt_variant()
     questions = load_questions(args.ids)
-    print(f"모델 {model}, 프롬프트 {prompt_version()}, 문항 {len(questions)}개", file=sys.stderr)
+    print(f"모델 {model}, 프롬프트 {variant} {prompt_version()}, 문항 {len(questions)}개", file=sys.stderr)
 
     with ThreadPoolExecutor(max_workers=args.jobs) as pool:
         results = list(pool.map(run_one, questions))
@@ -127,6 +132,7 @@ def main(argv: list[str] | None = None) -> int:
     summary = summarize(results)
     record = {
         "model": model,
+        "prompt": variant,
         "prompt_version": prompt_version(),
         "today": eval_today(),
         "finished_at": datetime.now().isoformat(timespec="seconds"),
@@ -134,7 +140,7 @@ def main(argv: list[str] | None = None) -> int:
         "results": [asdict(r) for r in results],
     }
     RESULTS.mkdir(exist_ok=True)
-    path = RESULTS / f"{datetime.now():%Y%m%d-%H%M%S}-{model}.json"
+    path = RESULTS / f"{datetime.now():%Y%m%d-%H%M%S}-{model}-{variant}.json"
     path.write_text(json.dumps(record, ensure_ascii=False, indent=2))
     print(format_summary(summary))
     print(f"\n결과: {path.relative_to(ROOT)}", file=sys.stderr)
