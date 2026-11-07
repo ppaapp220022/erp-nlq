@@ -195,6 +195,61 @@ def test_salesman_cannot_reach_other_orders(sql):
     assert scalar(sql, KIM) == 0
 
 
+# --- 오류 문구로 권한 밖 값이 새지 않는지 (DB) ---
+# 범위 조건과 사용자 조건은 같은 Filter에서 평가된다. 플래너가 값싼 사용자 조건을 앞에 두면, 권한 밖 행에서
+# 캐스트 오류가 나 그 값이 오류 문구(화면, 자기 수정 프롬프트)로 나갈 수 있다. 평가 순서는 Postgres가 보장하지
+# 않으므로, 지금 순서가 바뀌면 여기서 잡는다.
+
+LEE = 8  # sales.lee. KIM에게는 권한 밖 담당자
+
+
+def _out_of_scope_names(sql):
+    return {row[0] for row in execute(sql, ADMIN).rows}
+
+
+@db
+@pytest.mark.parametrize(
+    "sql, out_of_scope",
+    [
+        ("SELECT 1 FROM sale_order WHERE name::boolean", f"SELECT name FROM sale_order WHERE NOT {KIM_ORDERS}"),
+        (
+            f"SELECT 1 FROM sale_order WHERE (CASE WHEN user_id = {LEE} THEN name ELSE 'true' END)::boolean",
+            f"SELECT name FROM sale_order WHERE user_id = {LEE}",
+        ),
+        (
+            f"SELECT 1 FROM res_partner p JOIN sale_order o ON o.partner_id = p.id "
+            f"WHERE (CASE WHEN o.user_id = {LEE} THEN o.name ELSE 'true' END)::boolean",
+            f"SELECT name FROM sale_order WHERE user_id = {LEE}",
+        ),
+        (
+            f"SELECT 1 FROM account_move WHERE (CASE WHEN invoice_user_id = {LEE} THEN name ELSE 'true' END)::boolean",
+            f"SELECT name FROM account_move WHERE invoice_user_id = {LEE}",
+        ),
+    ],
+)
+def test_error_message_does_not_leak_out_of_scope_values(sql, out_of_scope):
+    names = _out_of_scope_names(out_of_scope)
+    assert names
+    try:
+        execute(sql, KIM)
+    except ExecutionError as e:
+        assert not any(f'"{n}"' in str(e) for n in names), str(e)
+
+
+@db
+@pytest.mark.parametrize(
+    "sql",
+    [
+        f"SELECT 1 FROM sale_order WHERE 1 / (user_id - {LEE}) = 0",  # 권한 밖 행이 있으면 0으로 나누기
+        f"SELECT 1 FROM sale_order WHERE (CASE WHEN user_id = {LEE} THEN 'x' ELSE 'true' END)::boolean",
+        f"SELECT 1 FROM account_move WHERE 1 / (invoice_user_id - {LEE}) = 0",
+    ],
+)
+def test_error_is_not_an_oracle_for_out_of_scope_rows(sql):
+    # 권한 밖 행에서만 오류가 나는 식. 오류가 나면 그런 행이 있다는 사실이 샌다
+    execute(sql, KIM)
+
+
 @db
 def test_salesman_sees_only_own_customer_invoices():
     assert scalar("SELECT count(*) FROM account_move", KIM) == 13
