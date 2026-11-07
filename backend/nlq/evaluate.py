@@ -119,7 +119,9 @@ def format_summary(summary: dict[str, dict[str, int]]) -> str:
 
 
 def prompt_version() -> str:
-    return hashlib.sha256(system_prompt().encode()).hexdigest()[:12]
+    # 역할마다 프롬프트가 다르므로 사용자별 프롬프트를 모두 이어 해시한다. 거르는 규칙이 바뀌어도 버전이 바뀐다.
+    prompts = (system_prompt(user=p.user) for _, p in sorted(load_users().items()))
+    return hashlib.sha256("\n".join(prompts).encode()).hexdigest()[:12]
 
 
 def main(argv: list[str] | None = None) -> int:
