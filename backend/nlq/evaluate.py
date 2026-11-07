@@ -5,6 +5,7 @@
     uv run --directory backend nlq-eval sales-001 stock-002   # 일부만
     uv run --directory backend nlq-eval --prompt schema       # 비교 기준 1: OKF 묶음 없이
     uv run --directory backend nlq-eval --retries 0           # 자기 수정 없이 (전후 비교용)
+    uv run --directory backend nlq-eval --retrieve embedding  # 검색 방식 (기본 keyword, M5 검색 비교)
 
 문항마다 ask()로 SQL을 만들어 실행하고(실패하면 오류를 넣어 다시 만든다), 정답 SQL도 같은 사용자로
 execute()해 결과를 비교한다. DB와 API로 가는 길은 generate()와 execute()뿐이다. 결과는 eval/results/에 JSON으로 남긴다(git 제외).
@@ -32,6 +33,7 @@ from nlq.ask import RETRIES, ask
 from nlq.generate import DEFAULT_MODEL
 from nlq.models import GuardError
 from nlq.prompt import DEFAULT_VARIANT, VARIANTS, prompt_variant, system_prompt
+from nlq.retrieve import DEFAULT_METHOD, METHODS, load_examples, retrieve, retrieve_method
 from nlq.scoring import matches
 from nlq.settings import ROOT, eval_today, setting
 from nlq.users import load_users
@@ -54,6 +56,8 @@ class Result:
     # 자기 수정: 다시 만든 횟수와 첫 시도의 오류(마지막 시도만 채점한다)
     retried: int = 0
     first_error: str | None = None
+    # 검색: 사용자 메시지에 넣은 예시 id
+    examples: list[str] | None = None
 
 
 def load_questions(ids: list[str] | None = None) -> list[dict]:
@@ -70,6 +74,8 @@ def run_one(q: dict, retries: int = RETRIES) -> Result:
     user = load_users()[q["role"]].user
     start = time.monotonic()
     result = Result(id=q["id"], area=q["area"], role=q["role"], status="wrong")
+    # generate()와 같은 호출이라 같은 예시가 나온다(결정적)
+    result.examples = [e.id for e in retrieve(q["question"], user)]
     # 정답이 실행되지 않으면 문항 쪽 문제다. 채점하지 않고 멈춘다(test_eval_questions.py가 먼저 잡아야 한다).
     gold = execute(q["gold_sql"], user)
     try:
@@ -124,11 +130,17 @@ def prompt_version() -> str:
     return hashlib.sha256("\n".join(prompts).encode()).hexdigest()[:12]
 
 
+def examples_version() -> str:
+    text = "\n".join(f"{e.id}\n{e.question}\n{e.sql}" for e in load_examples())
+    return hashlib.sha256(text.encode()).hexdigest()[:12]
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="nlq-eval", description="평가 문항 채점")
     parser.add_argument("ids", nargs="*", help="돌릴 문항 id. 없으면 전체")
     parser.add_argument("--model", help=f"Claude 모델 ID (기본: EVAL_MODEL, 없으면 {DEFAULT_MODEL})")
     parser.add_argument("--prompt", choices=VARIANTS, help=f"프롬프트 변형 (기본: NLQ_PROMPT, 없으면 {DEFAULT_VARIANT})")
+    parser.add_argument("--retrieve", choices=METHODS, help=f"예시 검색 방식 (기본: NLQ_RETRIEVE, 없으면 {DEFAULT_METHOD})")
     parser.add_argument("--retries", type=int, default=RETRIES, help=f"실행 실패 시 다시 만드는 횟수 (기본 {RETRIES})")
     parser.add_argument("--jobs", type=int, default=4, help="동시에 돌릴 문항 수")
     args = parser.parse_args(argv)
@@ -137,13 +149,18 @@ def main(argv: list[str] | None = None) -> int:
         os.environ["EVAL_MODEL"] = args.model
     if args.prompt:
         os.environ["NLQ_PROMPT"] = args.prompt
+    if args.retrieve:
+        os.environ["NLQ_RETRIEVE"] = args.retrieve
     model = setting("EVAL_MODEL", DEFAULT_MODEL)
     variant = prompt_variant()
+    method = retrieve_method()
     questions = load_questions(args.ids)
     print(
-        f"모델 {model}, 프롬프트 {variant} {prompt_version()}, 재시도 {args.retries}, 문항 {len(questions)}개",
+        f"모델 {model}, 프롬프트 {variant} {prompt_version()}, 검색 {method}, 재시도 {args.retries}, 문항 {len(questions)}개",
         file=sys.stderr,
     )
+    # 임베딩 모델은 스레드를 띄우기 전에 한 번 적재한다
+    retrieve(questions[0]["question"], load_users()[questions[0]["role"]].user)
 
     with ThreadPoolExecutor(max_workers=args.jobs) as pool:
         results = list(pool.map(lambda q: run_one(q, args.retries), questions))
@@ -158,6 +175,8 @@ def main(argv: list[str] | None = None) -> int:
         "model": model,
         "prompt": variant,
         "prompt_version": prompt_version(),
+        "retrieve": method,
+        "examples_version": examples_version(),
         "retries": args.retries,
         "today": eval_today(),
         "finished_at": datetime.now().isoformat(timespec="seconds"),
@@ -165,7 +184,7 @@ def main(argv: list[str] | None = None) -> int:
         "results": [asdict(r) for r in results],
     }
     RESULTS.mkdir(exist_ok=True)
-    path = RESULTS / f"{datetime.now():%Y%m%d-%H%M%S}-{model}-{variant}-r{args.retries}.json"
+    path = RESULTS / f"{datetime.now():%Y%m%d-%H%M%S}-{model}-{variant}-{method}-r{args.retries}.json"
     path.write_text(json.dumps(record, ensure_ascii=False, indent=2))
     print(format_summary(summary))
     print(f"\n결과: {path.relative_to(ROOT)}", file=sys.stderr)

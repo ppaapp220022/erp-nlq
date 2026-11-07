@@ -16,7 +16,7 @@ docker compose up -d                 # Odoo 19 + Postgres 16(pgvector), 둘 다 
 ./scripts/db-schema.sh               # nlq_readonly가 읽는 열 목록을 db/schema.txt로 (generate 프롬프트용)
 uv run --directory backend pytest  # 백엔드 테스트 (Python 3.12, uv 필요)
 uv run --directory backend nlq "질문" --user sales.kim   # 터미널에서 질문 → SQL → 결과. --sql, --users 참고
-uv run --directory backend nlq-eval [--model ...] [--prompt okf|schema] [id ...]   # 평가 문항 채점, 영역별 정확도 (eval/README.md)
+uv run --directory backend nlq-eval [--model ...] [--prompt okf|schema] [--retrieve none|keyword|embedding] [id ...]   # 평가 문항 채점, 영역별 정확도 (eval/README.md)
 uv run --directory backend nlq-api    # 화면용 API, 127.0.0.1:8000
 npm --prefix web run dev             # 화면(Next.js), 127.0.0.1:3000. /api/* 를 nlq-api로 넘긴다
 ./scripts/odoo-shell.sh <파일.py>     # Odoo ORM(env)으로 Python 실행. 권한 조사는 scripts/odoo_access_report.py

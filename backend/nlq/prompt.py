@@ -1,7 +1,7 @@
 """generate()에 넘기는 프롬프트를 만든다.
 
 시스템 프롬프트는 질문과 상관없이 같은 바이트여야 캐시된다(접두어 일치). 그래서 지침, 열 목록,
-OKF 묶음만 넣고, 질문과 사용자는 사용자 메시지에 둔다. 평가 문항(eval/questions/)은 읽지 않는다.
+OKF 묶음만 넣고, 질문·사용자·검색한 예시(nlq/retrieve.py)는 사용자 메시지에 둔다. 평가 문항(eval/questions/)은 읽지 않는다.
 
 열 목록과 OKF 묶음은 사용자가 읽을 수 있는 테이블로 거른다(M5). 역할마다 프롬프트가 달라 캐시도 역할마다 따로다.
 거르는 것은 정보 노출을 줄이는 장치이고 권한을 지키는 장치가 아니다. 권한은 execute()가 강제한다.
@@ -14,12 +14,14 @@ OKF 묶음만 넣고, 질문과 사용자는 사용자 메시지에 둔다. 평�
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from pathlib import Path
 
 import yaml
 
 from nlq.identity import can_read
 from nlq.models import Failed, User
+from nlq.retrieve import Example
 from nlq.settings import ROOT, eval_today, setting
 
 KNOWLEDGE = ROOT / "knowledge"
@@ -91,8 +93,17 @@ def system_prompt(variant: str | None = None, user: User | None = None) -> str:
     return prompt
 
 
-def user_message(question: str, user: User, failed: Failed | None = None) -> str:
-    message = f"질문한 사용자: res_users.id = {user.odoo_uid}\n\n질문: {question}"
+def user_message(question: str, user: User, failed: Failed | None = None, examples: Sequence[Example] = ()) -> str:
+    message = f"질문한 사용자: res_users.id = {user.odoo_uid}\n\n"
+    if examples:
+        shots = "\n".join(
+            f"<example>\n<question>{e.question}</question>\n<sql>\n{e.sql}\n</sql>\n</example>" for e in examples
+        )
+        message += (
+            "비슷한 질문의 예시다. 질문한 사용자와 다른 사용자 기준으로 쓴 것도 있다. "
+            f"그대로 베끼지 말고 이 질문에 맞게 쓴다.\n<examples>\n{shots}\n</examples>\n\n"
+        )
+    message += f"질문: {question}"
     if failed is not None:
         message += (
             f"\n\n앞서 만든 SQL이 실행되지 않았다. 오류를 보고 고친 SQL 하나를 다시 쓴다."
