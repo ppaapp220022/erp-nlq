@@ -1,0 +1,10 @@
+id: stock-010
+area: 재고
+role: stock.choi
+question: 판매 주문에 연결된 출고 문서 목록. 주문 번호, 출고 번호, 출고 상태
+gold_sql: |
+  SELECT o.name AS order_name, p.name AS picking, p.state
+  FROM stock_picking p
+  JOIN sale_order o ON o.id = p.sale_id
+order_matters: false
+notes: 출고 → 주문은 stock_picking.sale_id로만 이을 수 있고, 비어 있는 출고가 많다(knowledge/pitfalls/unlinked-documents.md)

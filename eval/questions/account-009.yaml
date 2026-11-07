@@ -1,0 +1,14 @@
+id: account-009
+area: 회계
+role: sales.kim
+question: 내 담당 송장과 환불에서 아직 못 받은 금액을 회사별로
+gold_sql: |
+  SELECT c.name AS company, sum(m.amount_residual_signed) AS receivable
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  WHERE m.state = 'posted'
+    AND m.move_type IN ('out_invoice', 'out_refund')
+    AND m.invoice_user_id = 7
+  GROUP BY c.name
+order_matters: false
+notes: 미수금 = 송장·환불 잔액 합계(부호 있는 열). "내" = res_users.id 7

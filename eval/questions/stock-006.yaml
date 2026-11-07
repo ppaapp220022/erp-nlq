@@ -1,0 +1,13 @@
+id: stock-006
+area: 재고
+role: sales.kim
+question: 내일 이후로 예정된 고객 출고는 몇 건이야? 완료·취소된 건 빼고
+gold_sql: |
+  SELECT count(*) AS pickings
+  FROM stock_picking p
+  JOIN stock_location d ON d.id = p.location_dest_id
+  WHERE d.usage = 'customer'
+    AND p.state NOT IN ('done', 'cancel')
+    AND p.scheduled_date >= '2026-11-04'
+order_matters: false
+notes: 내일 = 2026-11-04. scheduled_date는 timestamp라 날짜 경계로 자른다. 영업 사원도 재고 문서는 회사 범위 전부 본다(ADR 0002)

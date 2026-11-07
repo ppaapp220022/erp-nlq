@@ -1,0 +1,17 @@
+id: stock-012
+area: 재고
+role: sales.park
+question: 재고 관리 품목 중 창고에 재고가 하나도 없는 품목
+gold_sql: |
+  SELECT t.name->>'en_US' AS product
+  FROM product_product pp
+  JOIN product_template t ON t.id = pp.product_tmpl_id
+  WHERE t.is_storable AND pp.active AND t.active
+    AND NOT EXISTS (
+      SELECT 1
+      FROM stock_quant q
+      JOIN stock_location l ON l.id = q.location_id
+      WHERE q.product_id = pp.id AND l.usage = 'internal' AND q.quantity > 0
+    )
+order_matters: false
+notes: 재고 관리 품목 = is_storable. 재고 행이 아예 없는 품목도 포함해야 해서 내부 조인으로는 안 된다. 변형 단위라 같은 이름이 여러 행 나올 수 있다

@@ -1,0 +1,17 @@
+id: account-004
+area: 회계
+role: admin
+question: San Francisco 회사에서 받을 돈이 가장 많이 남은 고객 송장 5건. 송장 번호, 고객, 남은 금액
+gold_sql: |
+  SELECT m.name, p.name AS customer, m.amount_residual
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  JOIN res_partner p ON p.id = m.commercial_partner_id
+  WHERE c.name = 'My Company (San Francisco)'
+    AND m.state = 'posted'
+    AND m.move_type = 'out_invoice'
+    AND m.amount_residual > 0
+  ORDER BY m.amount_residual DESC
+  LIMIT 5
+order_matters: false
+notes: 2·3위가 같은 금액이라 행 순서는 보지 않는다(5·6위는 달라서 집합은 정해진다). 송장 한 건의 금액은 부호 없는 열이 자연스럽다
