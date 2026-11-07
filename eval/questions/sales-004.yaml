@@ -1,0 +1,12 @@
+id: sales-004
+area: 판매
+role: sales.kim
+question: 내 확정 주문을 금액 큰 순서로 보여줘. 주문 번호, 고객, 부가세 제외 금액
+gold_sql: |
+  SELECT o.name, p.name AS customer, o.amount_untaxed
+  FROM sale_order o
+  JOIN res_partner p ON p.id = o.partner_id
+  WHERE o.state = 'sale' AND o.user_id = 7
+  ORDER BY o.amount_untaxed DESC
+order_matters: true
+notes: 질문의 "내"는 질문한 사용자(res_users.id 7). 영업 사원 범위에는 담당자 없는 주문도 들어오므로 user_id 조건을 직접 걸어야 맞다

@@ -1,0 +1,11 @@
+id: sales-008
+area: 판매
+role: admin
+question: 이번 달 확정 주문 금액(부가세 제외)이 지난달보다 얼마나 늘었어?
+gold_sql: |
+  SELECT sum(amount_untaxed) FILTER (WHERE date_order >= '2026-11-01' AND date_order < '2026-12-01')
+       - sum(amount_untaxed) FILTER (WHERE date_order >= '2026-10-01' AND date_order < '2026-11-01') AS increase
+  FROM sale_order
+  WHERE state = 'sale'
+order_matters: false
+notes: 이번 달 = 11월, 지난달 = 10월(today 2026-11-03). 9월 29일 주문은 어느 쪽에도 들지 않는다. 두 달 금액을 함께 내도 차이 열이 있으면 맞다

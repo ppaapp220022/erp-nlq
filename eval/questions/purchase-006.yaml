@@ -1,0 +1,14 @@
+id: purchase-006
+area: 구매
+role: stock.choi
+question: 확정 발주 기준으로 품목별 매입 수량과 금액(부가세 제외)
+gold_sql: |
+  SELECT t.name->>'en_US' AS product, sum(l.product_qty) AS qty, sum(l.price_subtotal) AS amount_untaxed
+  FROM purchase_order_line l
+  JOIN purchase_order o ON o.id = l.order_id
+  JOIN product_product pp ON pp.id = l.product_id
+  JOIN product_template t ON t.id = pp.product_tmpl_id
+  WHERE o.state = 'purchase' AND l.display_type IS NULL
+  GROUP BY pp.id, t.name->>'en_US'
+order_matters: false
+notes: 품목은 변형(product_product) 단위. 견적 요청 라인은 뺀다

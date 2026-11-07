@@ -1,0 +1,14 @@
+id: purchase-009
+area: 구매
+role: stock.choi
+question: Office Lamp가 들어간 발주를 견적 요청까지 포함해서 보여줘. 발주 번호, 상태, 수량
+gold_sql: |
+  SELECT o.name, o.state, l.product_qty
+  FROM purchase_order_line l
+  JOIN purchase_order o ON o.id = l.order_id
+  JOIN product_product pp ON pp.id = l.product_id
+  JOIN product_template t ON t.id = pp.product_tmpl_id
+  WHERE t.name->>'en_US' = 'Office Lamp'
+    AND l.display_type IS NULL
+order_matters: false
+notes: 품목 이름은 jsonb라 name->>'en_US'로 비교한다(knowledge/pitfalls/translated-jsonb.md)

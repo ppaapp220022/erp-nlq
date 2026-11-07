@@ -1,0 +1,11 @@
+id: sales-006
+area: 판매
+role: demo
+question: 아직 확정되지 않은 견적 목록. 주문 번호, 고객, 상태, 부가세 제외 금액
+gold_sql: |
+  SELECT o.name, p.name AS customer, o.state, o.amount_untaxed
+  FROM sale_order o
+  JOIN res_partner p ON p.id = o.partner_id
+  WHERE o.state IN ('draft', 'sent')
+order_matters: false
+notes: 견적 = draft(견적)와 sent(견적 발송). 영업 사원은 본인 담당과 담당자 없는 견적을 본다

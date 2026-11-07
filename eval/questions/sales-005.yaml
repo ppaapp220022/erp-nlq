@@ -1,0 +1,13 @@
+id: sales-005
+area: 판매
+role: admin
+question: 영업 사원별 확정 주문 건수와 부가세 제외 금액. 담당자 없는 주문은 빼고
+gold_sql: |
+  SELECT rp.name AS salesperson, count(*) AS orders, sum(o.amount_untaxed) AS amount_untaxed
+  FROM sale_order o
+  JOIN res_users u ON u.id = o.user_id
+  JOIN res_partner rp ON rp.id = u.partner_id
+  WHERE o.state = 'sale'
+  GROUP BY rp.name
+order_matters: false
+notes: 사용자 이름은 res_users에 없고 res_users.partner_id → res_partner.name에 있다

@@ -1,0 +1,15 @@
+id: purchase-007
+area: 구매
+role: admin
+question: San Francisco 회사의 공급사별 매입액. 부가세 빼고 매입 환불은 차감해서, 차감 후 0인 공급사도 보여줘
+gold_sql: |
+  SELECT p.name AS vendor, -sum(m.amount_untaxed_signed) AS amount_untaxed
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  JOIN res_partner p ON p.id = m.commercial_partner_id
+  WHERE c.name = 'My Company (San Francisco)'
+    AND m.state = 'posted'
+    AND m.move_type IN ('in_invoice', 'in_refund')
+  GROUP BY p.name
+order_matters: false
+notes: 매입액은 발주가 아니라 확정된 매입 송장 기준이다. 매입 쪽 signed 열은 음수라 부호를 뒤집는다(knowledge/pitfalls/amount-sign.md). 환불로 0이 된 공급사도 행으로 남긴다(질문이 요구)

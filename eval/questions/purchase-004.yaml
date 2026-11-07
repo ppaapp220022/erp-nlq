@@ -1,0 +1,12 @@
+id: purchase-004
+area: 구매
+role: stock.choi
+question: 아직 확정 안 된 견적 요청을 공급사별로 몇 건, 얼마(부가세 제외)인지
+gold_sql: |
+  SELECT p.name AS vendor, count(*) AS rfqs, sum(o.amount_untaxed) AS amount_untaxed
+  FROM purchase_order o
+  JOIN res_partner p ON p.id = o.partner_id
+  WHERE o.state IN ('draft', 'sent')
+  GROUP BY p.name
+order_matters: false
+notes: 견적 요청 = draft(RFQ)와 sent(RFQ 발송). 확정 발주는 purchase
