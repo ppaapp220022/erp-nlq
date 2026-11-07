@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from nlq import ExecutionError, GeneratedSQL, Rows, cli
+from nlq import ExecutionError, GeneratedSQL, Rows, ask, cli
 from nlq.users import load_users
 
 
@@ -35,8 +35,8 @@ def test_format_table_reports_truncation():
 
 def test_question_goes_through_generate_and_execute(monkeypatch, capsys):
     seen = {}
-    monkeypatch.setattr(cli, "generate", lambda q, user: seen.setdefault("gen", (q, user)) and GeneratedSQL("SELECT 1", "m"))
-    monkeypatch.setattr(cli, "execute", lambda sql, user: seen.setdefault("exec", (sql, user)) and _rows())
+    monkeypatch.setattr(ask, "generate", lambda q, user, failed: seen.setdefault("gen", (q, user)) and GeneratedSQL("SELECT 1", "m"))
+    monkeypatch.setattr(ask, "execute", lambda sql, user: seen.setdefault("exec", (sql, user)) and _rows())
     assert cli.main(["매출", "--user", "stock.choi"]) == 0
     assert seen["gen"][0] == "매출"
     assert seen["gen"][1] == seen["exec"][1] == load_users()["stock.choi"].user
@@ -61,3 +61,24 @@ def test_execution_error_returns_1(monkeypatch, capsys):
 def test_unknown_user_is_rejected():
     with pytest.raises(SystemExit):
         cli.main(["질문", "--user", "nobody"])
+
+
+def test_failed_sql_is_regenerated_once(monkeypatch, capsys):
+    # 자기 수정: 첫 SQL이 실패하면 오류를 넣어 다시 만들고, 그 결과를 보여 준다
+    calls = []
+
+    def fake_generate(q, user, failed):
+        calls.append(failed)
+        return GeneratedSQL("SELECT bad" if failed is None else "SELECT 1", "m")
+
+    def fake_execute(sql, user):
+        if sql == "SELECT bad":
+            raise ExecutionError('column "bad" does not exist')
+        return _rows()
+
+    monkeypatch.setattr(ask, "generate", fake_generate)
+    monkeypatch.setattr(ask, "execute", fake_execute)
+    assert cli.main(["매출"]) == 0
+    assert calls[0] is None and calls[1].sql == "SELECT bad" and "bad" in calls[1].error
+    out, err = capsys.readouterr()
+    assert "SELECT bad" in out and "다시 만들었다" in err and "(2행)" in out

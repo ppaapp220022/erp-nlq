@@ -10,7 +10,7 @@ OKF 묶음만 넣고, 질문과 사용자는 사용자 메시지에 둔다. 평�
 
 from __future__ import annotations
 
-from nlq.models import User
+from nlq.models import Failed, User
 from nlq.settings import ROOT, eval_today, setting
 
 KNOWLEDGE = ROOT / "knowledge"
@@ -56,5 +56,11 @@ def system_prompt(variant: str | None = None) -> str:
     return prompt
 
 
-def user_message(question: str, user: User) -> str:
-    return f"질문한 사용자: res_users.id = {user.odoo_uid}\n\n질문: {question}"
+def user_message(question: str, user: User, failed: Failed | None = None) -> str:
+    message = f"질문한 사용자: res_users.id = {user.odoo_uid}\n\n질문: {question}"
+    if failed is not None:
+        message += (
+            f"\n\n앞서 만든 SQL이 실행되지 않았다. 오류를 보고 고친 SQL 하나를 다시 쓴다."
+            f"\n<previous_sql>\n{failed.sql}\n</previous_sql>\n<error>\n{failed.error}\n</error>"
+        )
+    return message

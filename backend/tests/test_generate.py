@@ -10,7 +10,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from nlq import GenerationError, User, generate
+from nlq import Failed, GenerationError, User, generate
 from nlq.prompt import KNOWLEDGE, SCHEMA, VARIANTS, system_prompt, user_message
 from nlq.settings import ROOT, eval_today
 
@@ -68,6 +68,14 @@ def test_user_message_carries_question_and_user():
     assert "res_users.id = 6" in message
 
 
+def test_user_message_carries_failed_attempt():
+    # 자기 수정: 앞 SQL과 오류는 사용자 메시지에 붙는다. 시스템 프롬프트(캐시)는 그대로다
+    assert "<error>" not in user_message("q", USER)
+    message = user_message("q", USER, Failed(sql="SELECT bad", error='column "bad" does not exist'))
+    assert "<previous_sql>\nSELECT bad\n</previous_sql>" in message
+    assert 'column "bad" does not exist' in message
+
+
 def _fake_client(monkeypatch, *, stop_reason="end_turn", sql="SELECT 1"):
     calls = []
 
@@ -91,6 +99,14 @@ def test_generate_caches_system_prompt_and_uses_configured_model(monkeypatch):
     assert call["model"] == "claude-opus-5-5"
     assert call["system"][0]["cache_control"] == {"type": "ephemeral"}
     assert "고유한-질문-문자열" not in call["system"][0]["text"]
+
+
+def test_generate_sends_failed_attempt_in_user_message(monkeypatch):
+    calls = _fake_client(monkeypatch)
+    generate("질문", USER, Failed(sql="SELECT bad", error="oops"))
+    (call,) = calls
+    assert call["system"][0]["text"] == system_prompt()
+    assert "SELECT bad" in call["messages"][0]["content"] and "oops" in call["messages"][0]["content"]
 
 
 def test_generate_uses_configured_prompt_variant(monkeypatch):

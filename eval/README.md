@@ -44,6 +44,7 @@ uv run --directory backend nlq-eval                            # 전체, EVAL_MO
 uv run --directory backend nlq-eval --model claude-opus-5-5    # 결과 표용 측정
 uv run --directory backend nlq-eval sales-001 stock-002        # 일부만
 uv run --directory backend nlq-eval --prompt schema            # 비교 기준 1: OKF 묶음 없이 (기본 okf)
+uv run --directory backend nlq-eval --retries 0                # 자기 수정 없이 (기본 1회)
 ```
 
 비교 규칙은 [backend/nlq/scoring.py](../backend/nlq/scoring.py)에 있다.
@@ -53,4 +54,5 @@ uv run --directory backend nlq-eval --prompt schema            # 비교 기준 1
 - 행 수 제한(1,000행)으로 잘린 결과는 틀린 것으로 본다.
 - 결과는 `correct`, `wrong`, `generation_error`, `guard_rejected`, `execution_error` 중 하나다. 정답 SQL이 실행되지 않으면 채점을 멈춘다.
 - 실행 결과는 `eval/results/<시각>-<모델>-<변형>.json`(git 제외)에 모델, 프롬프트 변형(`okf`·`schema`)과 버전(시스템 프롬프트 해시)과 함께 남는다. 점수는 모델별로 따로 적고, Haiku와 Opus 점수를 섞지 않는다.
+- 생성 SQL이 실행되지 않으면(guard 거부·실행 오류) 오류를 넣어 한 번 다시 만들고 마지막 시도를 채점한다(자기 수정, `--retries`, 기본 1). 결과 표의 "재시도"는 다시 만든 문항 수, "재시도로 정답"은 그중 맞힌 수다. 결과 파일에는 `retries` 설정과 문항별 `retried`·`first_error`가 남는다. M4 결과 표는 자기 수정 전이라 `--retries 0`과 같다.
 - 프롬프트 변형은 `NLQ_PROMPT`(또는 `--prompt`)로 고른다. `okf`는 지침 + 열 목록 + OKF 묶음, `schema`는 OKF 묶음과 그것을 가리키는 지침 한 줄만 뺀 비교 기준 1이다([backend/nlq/prompt.py](../backend/nlq/prompt.py)).

@@ -4,7 +4,8 @@
     uv run --directory backend nlq --user stock.choi          # 질문을 한 줄씩 입력
     uv run --directory backend nlq --sql "SELECT 1"           # 생성 없이 실행만 (정답 SQL 확인용)
 
-DB와 API로 가는 길은 generate()와 execute()뿐이다. 이 파일은 그 둘을 부르고 출력만 한다.
+DB와 API로 가는 길은 generate()와 execute()뿐이다. 이 파일은 그 둘(질문은 ask()로 묶어)을 부르고 출력만 한다.
+실행이 실패하면 오류를 넣어 SQL을 한 번 다시 만든다(자기 수정, nlq/ask.py).
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from nlq import ExecutionError, GenerationError, Rows, execute, generate
+from nlq.ask import ask
 from nlq.users import Persona, load_users
 
 DEFAULT_USER = "sales.kim"
@@ -62,12 +64,25 @@ def _questions():
 
 def _ask(question: str, persona: Persona, *, run: bool) -> int:
     try:
-        generated = generate(question, persona.user)
+        if not run:
+            generated = generate(question, persona.user)
+            print(f"-- {generated.model}\n{generated.sql}\n", flush=True)
+            return 0
+        attempts = ask(question, persona.user)
     except GenerationError as e:
         print(f"생성 실패: {e}", file=sys.stderr)
         return 1
-    print(f"-- {generated.model}\n{generated.sql}\n", flush=True)
-    return _run(generated.sql, persona) if run else 0
+    for i, attempt in enumerate(attempts):
+        if i:
+            print("-- 실행 실패로 오류를 넣어 다시 만들었다", file=sys.stderr)
+        print(f"-- {attempt.model}\n{attempt.sql}\n", flush=True)
+        if attempt.error is not None:
+            print(f"실행 실패: {attempt.error}", file=sys.stderr)
+    last = attempts[-1]
+    if last.rows is None:
+        return 1
+    _print_rows(last.rows)
+    return 0
 
 
 def _run(sql: str, persona: Persona) -> int:
@@ -76,10 +91,14 @@ def _run(sql: str, persona: Persona) -> int:
     except ExecutionError as e:
         print(f"실행 실패: {e}", file=sys.stderr)
         return 1
+    _print_rows(rows)
+    return 0
+
+
+def _print_rows(rows: Rows) -> None:
     print(format_table(rows), flush=True)
     for warning in rows.warnings:
         print(f"주의: {warning}", file=sys.stderr)
-    return 0
 
 
 def format_table(rows: Rows) -> str:

@@ -3,6 +3,7 @@
 // 한 페이지: 역할 선택, 질문, SQL 보기, 결과 표 (docs/plan.md M4 "화면").
 // 화면은 /generate와 /execute만 부른다. 권한은 화면이 아니라 execute()가 강제하므로,
 // SQL 칸을 고쳐 실행해도 같은 범위만 나온다.
+// 질문으로 만든 SQL이 실행되지 않으면 오류를 넣어 한 번 다시 만든다(자기 수정, backend/nlq/ask.py와 같은 순서).
 
 import { FormEvent, useEffect, useState } from "react";
 
@@ -10,6 +11,9 @@ type Persona = { login: string; role: string };
 type Cell = string | number | boolean | null;
 type Rows = { columns: string[]; rows: Cell[][]; truncated: boolean; warnings: string[] };
 type ApiError = { kind: string; message: string };
+type Generated = { sql: string; model: string };
+
+const RETRY_KINDS = new Set(["guard_rejected", "execution_error"]);
 
 const KIND_LABEL: Record<string, string> = {
   generation_error: "SQL 생성 실패",
@@ -42,6 +46,7 @@ export default function Home() {
   const [result, setResult] = useState<Rows | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const [busy, setBusy] = useState<"" | "generate" | "execute">("");
+  const [retried, setRetried] = useState<ApiError | null>(null);
 
   useEffect(() => {
     call<Persona[]>("/users")
@@ -53,6 +58,7 @@ export default function Home() {
     setBusy("execute");
     setError(null);
     setResult(null);
+    setRetried(null);
     try {
       setResult(await call<Rows>("/execute", { sql: sqlToRun, user }));
     } catch (e) {
@@ -68,14 +74,31 @@ export default function Home() {
     setBusy("generate");
     setError(null);
     setResult(null);
+    setRetried(null);
     setSql("");
     try {
-      const generated = await call<{ sql: string; model: string }>("/generate", { question, user });
+      let generated = await call<Generated>("/generate", { question, user });
       setSql(generated.sql);
       setModel(generated.model);
-      await run(generated.sql);
+      setBusy("execute");
+      try {
+        setResult(await call<Rows>("/execute", { sql: generated.sql, user }));
+        return;
+      } catch (err) {
+        const first = err as ApiError;
+        if (!RETRY_KINDS.has(first.kind)) throw first;
+        setRetried(first);
+        setBusy("generate");
+        const failed = { sql: generated.sql, error: first.message };
+        generated = await call<Generated>("/generate", { question, user, failed });
+        setSql(generated.sql);
+        setModel(generated.model);
+      }
+      setBusy("execute");
+      setResult(await call<Rows>("/execute", { sql: generated.sql, user }));
     } catch (e) {
       setError(e as ApiError);
+    } finally {
       setBusy("");
     }
   }
@@ -118,6 +141,11 @@ export default function Home() {
         <section>
           <h2>SQL</h2>
           <p className="meta">{model}가 만든 SQL입니다. 고쳐서 다시 실행할 수 있고, 실행 전에 권한 검사를 거칩니다.</p>
+          {retried && (
+            <p className="warn">
+              처음 만든 SQL이 실패해({KIND_LABEL[retried.kind] ?? "오류"}: {retried.message}) 오류를 넣어 다시 만들었습니다.
+            </p>
+          )}
           <textarea className="sql" rows={Math.min(16, Math.max(6, sql.split("\n").length + 1))} value={sql} onChange={(e) => setSql(e.target.value)} />
           <div className="row">
             <button type="button" className="secondary" disabled={busy !== ""} onClick={() => run(sql)}>
