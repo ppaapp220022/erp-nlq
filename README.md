@@ -37,6 +37,19 @@ docker compose exec -T odoo odoo server --db_host db -r odoo -w "$ODOO_DB_PASSWO
 
 http://localhost:8069 에 데모 관리자 계정으로 로그인할 수 있다.
 
+4. 화면을 띄운다. API(127.0.0.1:8000)와 Next.js(127.0.0.1:3000)를 각각 실행한다. `.env`에 `ANTHROPIC_API_KEY`가 있어야 질문이 SQL로 바뀐다.
+
+```bash
+uv run --directory backend nlq-api
+```
+
+```bash
+npm --prefix web install
+npm --prefix web run dev
+```
+
+http://127.0.0.1:3000 에서 사용자를 고르고 질문한다. 만들어진 SQL은 고쳐서 다시 실행할 수 있고, 어느 쪽이든 `execute()`가 고른 사용자의 권한 범위를 건다. 로그인이 없는 데모라 두 서버 모두 127.0.0.1에만 연다.
+
 ## CI
 
 PR마다 `checks`(결정적 검사)와 `ai-review`(Claude 리뷰, [.github/review/prompt.md](.github/review/prompt.md))가 돈다. 둘 다 main 브랜치 보호의 필수 체크다. `ai-review`에는 레포 시크릿 `CLAUDE_CODE_OAUTH_TOKEN`(Max 구독 토큰, `claude setup-token`으로 만든다)과 [Claude GitHub App](https://github.com/apps/claude) 설치가 필요하다.
