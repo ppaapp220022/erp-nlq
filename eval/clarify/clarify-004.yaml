@@ -1,0 +1,11 @@
+id: clarify-004
+role: admin
+question: 지난달 확정 주문 금액 합계는?
+expect: 부가세 포함 여부
+answer: 부가세 포함
+gold_sql: |
+  SELECT sum(amount_total) AS amount
+  FROM sale_order
+  WHERE state = 'sale' AND date_order >= '2026-10-01' AND date_order < '2026-11-01'
+order_matters: false
+notes: 주문 금액은 부가세 포함·제외가 정해지지 않았다

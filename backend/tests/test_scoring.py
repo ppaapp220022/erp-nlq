@@ -90,7 +90,7 @@ def fake_generate(*sqls):
     """시도마다 sqls에서 하나씩 낸다. 마지막 것을 계속 낸다."""
     calls = []
 
-    def generate(question, user, failed=None):
+    def generate(question, user, failed=None, clarified=None):
         calls.append(failed)
         return GeneratedSQL(sql=sqls[min(len(calls), len(sqls)) - 1], model="fake")
 
@@ -149,8 +149,9 @@ def test_summary_table():
         evaluate.Result(id="sales-002", area="판매", role="demo", status="guard_rejected"),
         evaluate.Result(id="stock-001", area="재고", role="demo", status="wrong"),
         evaluate.Result(id="stock-002", area="재고", role="demo", status="correct", retried=1),
+        evaluate.Result(id="stock-003", area="재고", role="demo", status="clarification"),
     ]
     table = evaluate.format_summary(evaluate.summarize(results))
-    assert "| 판매 | 1 | 2 | 50% | 0 | 1 | 0 | 0 | 0 |" in table
-    assert "| 재고 | 1 | 2 | 50% | 0 | 0 | 0 | 1 | 1 |" in table
-    assert "| 전체 | 2 | 4 | 50% |" in table
+    assert "| 판매 | 1 | 2 | 50% | 0 | 0 | 1 | 0 | 0 | 0 |" in table
+    assert "| 재고 | 1 | 3 | 33% | 1 | 0 | 0 | 0 | 1 | 1 |" in table
+    assert "| 전체 | 2 | 5 | 40% | 1 |" in table

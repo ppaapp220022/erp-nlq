@@ -1,0 +1,13 @@
+id: clarify-001
+role: admin
+question: 이번 달 판매액을 회사별로
+expect: 주문 기준인지 송장 기준인지
+answer: 확정 주문 기준, 부가세 제외
+gold_sql: |
+  SELECT c.name AS company, sum(o.amount_untaxed) AS amount
+  FROM sale_order o
+  JOIN res_company c ON c.id = o.company_id
+  WHERE o.state = 'sale' AND o.date_order >= '2026-11-01' AND o.date_order < '2026-12-01'
+  GROUP BY c.name
+order_matters: false
+notes: '"판매액"은 주문 기준(수주)과 송장 기준(매출) 어느 쪽인지 정해지지 않았다'

@@ -1,0 +1,12 @@
+id: clarify-006
+role: admin
+question: My US Company 고객 송장 금액 합계
+expect: 환불 차감 여부와 부가세 포함 여부
+answer: 고객 환불을 차감, 부가세 포함
+gold_sql: |
+  SELECT sum(m.amount_total_signed) AS amount
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  WHERE c.name = 'My US Company' AND m.state = 'posted' AND m.move_type IN ('out_invoice', 'out_refund')
+order_matters: false
+notes: 송장 금액 합계는 환불 차감과 부가세가 정해지지 않았다

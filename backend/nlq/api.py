@@ -4,7 +4,8 @@
 
 엔드포인트는 셋이다(docs/architecture.md "함수 경계").
   GET  /users      고를 수 있는 사용자(login, 역할 이름)
-  POST /generate   질문 → SQL. 결과는 신뢰하지 않는다. failed(앞 SQL과 오류)를 주면 고쳐 쓴다(자기 수정)
+  POST /generate   질문 → SQL. 결과는 신뢰하지 않는다. failed(앞 SQL과 오류)를 주면 고쳐 쓴다(자기 수정).
+                   업무 기준이 갈리면 sql 대신 clarification(질문, 선택지)을 준다. 고른 기준은 clarified로 다시 보낸다(되묻기)
   POST /execute    SQL → 결과. 권한은 여기서 execute()가 강제한다
 
 사용자는 화면의 역할 선택으로 정한다. 로그인이 없는 데모라서, 이 API는 127.0.0.1에만 연다.
@@ -30,6 +31,7 @@ PORT = 8000
 MAX_QUESTION = 1_000
 MAX_SQL = 20_000
 MAX_ERROR = 2_000
+MAX_CLARIFIED = 300
 
 app = FastAPI(title="erp-nlq", docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -43,6 +45,7 @@ class GenerateRequest(BaseModel):
     question: str = Field(min_length=1, max_length=MAX_QUESTION)
     user: str
     failed: FailedAttempt | None = None
+    clarified: str | None = Field(default=None, min_length=1, max_length=MAX_CLARIFIED)
 
 
 class ExecuteRequest(BaseModel):
@@ -56,13 +59,15 @@ def users() -> list[dict[str, str]]:
 
 
 @app.post("/generate")
-def generate_sql(req: GenerateRequest) -> dict[str, str]:
+def generate_sql(req: GenerateRequest) -> dict:
     try:
         failed = Failed(sql=req.failed.sql, error=req.failed.error) if req.failed else None
-        generated = generate(req.question, _user(req.user), failed)
+        generated = generate(req.question, _user(req.user), failed, req.clarified)
     except GenerationError as e:
         raise _error(502, "generation_error", str(e)) from e
-    return {"sql": generated.sql, "model": generated.model}
+    c = generated.clarification
+    clarification = {"question": c.question, "options": list(c.options)} if c else None
+    return {"sql": generated.sql, "model": generated.model, "clarification": clarification}
 
 
 @app.post("/execute")

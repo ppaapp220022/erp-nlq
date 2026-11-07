@@ -4,6 +4,7 @@
 // 화면은 /generate와 /execute만 부른다. 권한은 화면이 아니라 execute()가 강제하므로,
 // SQL 칸을 고쳐 실행해도 같은 범위만 나온다.
 // 질문으로 만든 SQL이 실행되지 않으면 오류를 넣어 한 번 다시 만든다(자기 수정, backend/nlq/ask.py와 같은 순서).
+// 업무 기준(주문/송장, 부가세, 환불)이 갈리는 질문이면 SQL 대신 되묻고, 고른 기준을 넣어 다시 만든다(되묻기).
 
 import { FormEvent, useEffect, useState } from "react";
 
@@ -11,7 +12,8 @@ type Persona = { login: string; role: string };
 type Cell = string | number | boolean | null;
 type Rows = { columns: string[]; rows: Cell[][]; truncated: boolean; warnings: string[] };
 type ApiError = { kind: string; message: string };
-type Generated = { sql: string; model: string };
+type Clarification = { question: string; options: string[] };
+type Generated = { sql: string; model: string; clarification: Clarification | null };
 
 const RETRY_KINDS = new Set(["guard_rejected", "execution_error"]);
 
@@ -47,6 +49,9 @@ export default function Home() {
   const [error, setError] = useState<ApiError | null>(null);
   const [busy, setBusy] = useState<"" | "generate" | "execute">("");
   const [retried, setRetried] = useState<ApiError | null>(null);
+  const [clarification, setClarification] = useState<Clarification | null>(null);
+  const [clarified, setClarified] = useState("");
+  const [custom, setCustom] = useState("");
 
   useEffect(() => {
     call<Persona[]>("/users")
@@ -71,13 +76,31 @@ export default function Home() {
   async function ask(e: FormEvent) {
     e.preventDefault();
     if (!question.trim()) return;
+    setClarified("");
+    await generateAndRun();
+  }
+
+  async function choose(basis: string) {
+    if (!basis.trim()) return;
+    setClarified(basis.trim());
+    await generateAndRun(basis.trim());
+  }
+
+  async function generateAndRun(basis?: string) {
     setBusy("generate");
     setError(null);
     setResult(null);
     setRetried(null);
     setSql("");
+    setClarification(null);
     try {
-      let generated = await call<Generated>("/generate", { question, user });
+      let generated = await call<Generated>("/generate", { question, user, ...(basis ? { clarified: basis } : {}) });
+      if (generated.clarification) {
+        setModel(generated.model);
+        setClarification(generated.clarification);
+        setCustom("");
+        return;
+      }
       setSql(generated.sql);
       setModel(generated.model);
       setBusy("execute");
@@ -90,7 +113,7 @@ export default function Home() {
         setRetried(first);
         setBusy("generate");
         const failed = { sql: generated.sql, error: first.message };
-        generated = await call<Generated>("/generate", { question, user, failed });
+        generated = await call<Generated>("/generate", { question, user, failed, ...(basis ? { clarified: basis } : {}) });
         setSql(generated.sql);
         setModel(generated.model);
       }
@@ -137,10 +160,40 @@ export default function Home() {
         </div>
       </form>
 
+      {clarification && (
+        <section className="clarify">
+          <h2>기준을 골라 주세요</h2>
+          <p>{clarification.question}</p>
+          <div className="options">
+            {clarification.options.map((o) => (
+              <button key={o} type="button" className="secondary" disabled={busy !== ""} onClick={() => choose(o)}>
+                {o}
+              </button>
+            ))}
+          </div>
+          <div className="row">
+            <input
+              aria-label="다른 기준"
+              value={custom}
+              placeholder="다른 기준을 직접 적기"
+              onChange={(e) => setCustom(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") choose(custom);
+              }}
+            />
+            <button type="button" disabled={busy !== "" || !custom.trim()} onClick={() => choose(custom)}>
+              이 기준으로
+            </button>
+          </div>
+          <p className="meta">{model}가 질문의 기준이 갈린다고 보고 되물었습니다.</p>
+        </section>
+      )}
+
       {sql && (
         <section>
           <h2>SQL</h2>
           <p className="meta">{model}가 만든 SQL입니다. 고쳐서 다시 실행할 수 있고, 실행 전에 권한 검사를 거칩니다.</p>
+          {clarified && <p className="meta">고른 기준: {clarified}</p>}
           {retried && (
             <p className="warn">
               처음 만든 SQL이 실패해({KIND_LABEL[retried.kind] ?? "오류"}: {retried.message}) 오류를 넣어 다시 만들었습니다.

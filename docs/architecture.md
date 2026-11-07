@@ -27,7 +27,7 @@ flowchart LR
 ## 함수 경계
 
 ```python
-def generate(question: str, user: User, failed: Failed | None = None) -> GeneratedSQL: ...   # LLM. 실패해도 안전
+def generate(question: str, user: User, failed: Failed | None = None, clarified: str | None = None) -> GeneratedSQL: ...   # LLM. 실패해도 안전
 def execute(sql: str, user: User) -> Rows: ...                   # 권한 강제 + 실행. DB로 가는 유일한 길
 ```
 
@@ -40,6 +40,15 @@ def execute(sql: str, user: User) -> Rows: ...                   # 권한 강제
 - DB 오류 첫 줄에 범위 안 행의 값이 섞일 수 있다(예: 형 변환 실패한 값). 질문과 같은 길로 Claude API에만 가고 로그에는 남기지 않는다(절대 규칙 6).
 - 실행은 됐지만 틀린 답은 다시 만들지 않는다. 정답을 모르는 상태에서는 틀렸는지 알 수 없기 때문이다.
 - 시스템 프롬프트(캐시)는 바꾸지 않고, 앞 SQL과 오류는 사용자 메시지에 붙인다.
+
+### 되묻기 (M5)
+
+질문이 업무 기준 하나에서 갈리는데 질문에도 지표 정의에도 단서가 없으면 `generate`가 SQL 대신 `Clarification`(한 문장 질문, 선택지 2~4개)을 돌려준다. 기준은 셋이다: 주문 기준과 송장 기준, 부가세 포함 여부, 송장 합계에서 환불 차감 여부. 규칙은 시스템 프롬프트 지침에 있고 `NLQ_CLARIFY=on|off`로 켜고 끈다([backend/nlq/prompt.py](../backend/nlq/prompt.py)).
+
+- 질문한 사람이 고른 기준은 `clarified`로 다시 넣고, 사용자 메시지에 붙는다. 이때와 자기 수정 때는 SQL만 있는 출력 형식으로 부르므로 같은 질문에 두 번 되묻지 않는다.
+- 되물음은 SQL을 실행하기 전에 끝난다. DB에 닿지 않으므로 권한과 상관이 없다. 고른 기준으로 만든 SQL도 `execute`가 처음부터 검증한다.
+- 되물음 텍스트와 선택지는 모델 출력이라 화면은 문자열로만 보여 준다.
+- 평가 50문항은 기준이 정해진 질문이라 되물으면 오답(`clarification`)으로 센다. 되물어야 하는 질문은 따로 둔 되묻기 세트(`eval/clarify/`)로 잰다.
 
 M4에서 [backend/nlq/api.py](../backend/nlq/api.py)(FastAPI)가 각각 `POST /generate`, `POST /execute`로 감쌌다. 화면은 이 두 API와 사용자 목록(`GET /users`, login과 역할 이름만)만 안다. 화면에는 로그인이 없고 사용자를 역할 선택으로 고르므로, API는 127.0.0.1에만 연다. 질문·SQL·결과는 로그에 남기지 않는다.
 
