@@ -103,11 +103,29 @@ def test_rejects(sql):
         (KIM, "SELECT (SELECT count(*) FROM purchase_order)"),
         (CHOI, "SELECT * FROM account_move"),  # 재고 담당은 송장을 못 본다
         (CHOI, "WITH m AS (SELECT * FROM account_move) SELECT count(*) FROM m"),
+        # 괄호 조인 안에 숨긴 권한 밖 테이블
+        (KIM, "SELECT count(*) FROM res_partner p LEFT JOIN (sale_order s JOIN purchase_order o ON o.id = s.id) ON s.partner_id = p.id"),
+        (KIM, "SELECT count(*) FROM (purchase_order o JOIN sale_order s ON o.id = s.id)"),
+        (CHOI, "SELECT count(*) FROM stock_picking k JOIN (res_partner p JOIN (account_move m JOIN res_users u ON u.id = m.invoice_user_id) ON m.partner_id = p.id) ON p.id = k.partner_id"),
     ],
 )
 def test_rejects_tables_outside_role(user, sql):
     with pytest.raises(GuardError):
         guard(sql, user)
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT count(*) FROM product_product pp CROSS JOIN res_company c WHERE pp.standard_price ? (c.id::text)",
+        "SELECT count(*) FROM product_product pp WHERE pp.standard_price ?| ARRAY['1', '2']",
+        "SELECT count(*) FROM product_product pp WHERE pp.standard_price ?& ARRAY['1']",
+        "SELECT count(*) FROM product_product pp WHERE pp.standard_price @> '{}' AND '{}' <@ pp.standard_price",
+    ],
+)
+def test_allows_jsonb_key_operators(sql):
+    # 이미 읽을 수 있는 열끼리의 비교라 허용한다. 테이블은 여전히 행 범위로 바뀐다
+    assert "WHERE" in guard(sql, CHOI)
 
 
 def test_guard_error_is_execution_error():
@@ -166,6 +184,11 @@ def test_salesman_sees_own_and_unassigned_orders():
         "SELECT count(*) FROM sale_order WHERE id = ANY(ARRAY(SELECT id FROM sale_order WHERE user_id = 8))",
         'SELECT count(*) FROM public."sale_order" WHERE user_id = 8',
         "SELECT count(*) FROM sale_order JOIN sale_order_line USING (id) WHERE sale_order.user_id = 8",
+        # 괄호 조인: 묶음의 첫 테이블과 안쪽 테이블 모두 범위가 걸려야 한다
+        "SELECT count(*) FROM res_partner p JOIN (sale_order o JOIN sale_order_line l ON l.order_id = o.id) ON o.partner_id = p.id WHERE o.user_id = 8",
+        "SELECT count(*) FROM res_partner p JOIN (res_users u JOIN sale_order o ON o.user_id = u.id) ON o.partner_id = p.id WHERE o.user_id = 8",
+        "SELECT count(*) FROM (sale_order o JOIN (res_users u JOIN sale_order s ON s.user_id = u.id) ON s.id = o.id) WHERE s.user_id = 8 OR o.user_id = 8",
+        "SELECT count(*) FROM (sale_order o JOIN stock_location l ON l.company_id = o.company_id) AS j WHERE user_id = 8",  # 묶음 별칭
     ],
 )
 def test_salesman_cannot_reach_other_orders(sql):
@@ -183,6 +206,29 @@ def test_salesman_sees_only_own_customer_invoices():
 def test_stock_user_sees_all_orders_in_company():
     # 재고 담당에게는 sale_order 그룹 규칙이 없어 회사 규칙만 걸린다 (ADR 0002)
     assert scalar("SELECT count(*) FROM sale_order", CHOI) == 24
+
+
+@db
+def test_nested_join_matches_flat_join():
+    # stock-002 (claude-opus-5-5, OKF)에서 거부됐던 꼴. 괄호 조인과 같은 뜻의 서브쿼리 조인이 같은 행을 낸다
+    nested = """
+        SELECT count(*), count(q.id), coalesce(sum(q.quantity), 0) FROM product_product p
+        LEFT JOIN (stock_quant q JOIN stock_location ql ON ql.id = q.location_id AND ql.usage = 'internal')
+          ON q.product_id = p.id"""
+    flat = """
+        SELECT count(*), count(q.id), coalesce(sum(q.quantity), 0) FROM product_product p
+        LEFT JOIN (SELECT q.* FROM stock_quant q JOIN stock_location ql ON ql.id = q.location_id
+                   WHERE ql.usage = 'internal') q ON q.product_id = p.id"""
+    for user in (KIM, CHOI, ADMIN):
+        assert execute(nested, user).rows == execute(flat, user).rows
+
+
+@db
+def test_jsonb_key_exists_runs():
+    # stock-011 (claude-opus-5-5, 프롬프트만)에서 거부됐던 꼴. ->> IS NOT NULL과 같은 품목 수가 나온다
+    exists = "SELECT count(*) FROM product_product pp WHERE pp.standard_price ? ('1'::text)"
+    extract = "SELECT count(*) FROM product_product pp WHERE pp.standard_price->>'1' IS NOT NULL"
+    assert scalar(exists, CHOI) == scalar(extract, CHOI) > 0
 
 
 @db
@@ -206,6 +252,7 @@ def test_executed_sql_is_the_rewritten_one():
         "SELECT (SELECT count(*) FROM sale_order_line), p.name FROM res_partner p JOIN res_users u ON u.partner_id = p.id",
         "SELECT * FROM product_product p WHERE EXISTS (SELECT 1 FROM stock_quant q WHERE q.product_id = p.id)",
         "SELECT id FROM sale_order UNION SELECT id FROM account_move",
+        "SELECT * FROM res_partner p LEFT JOIN (sale_order o JOIN (sale_order_line l JOIN account_move m ON m.id = l.id) ON l.order_id = o.id) ON o.partner_id = p.id",
     ],
 )
 def test_every_table_in_output_is_scoped(sql):

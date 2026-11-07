@@ -70,6 +70,8 @@ Odoo가 권한을 합치는 방식(전역 규칙은 AND, 그룹 규칙은 OR)과
 
 구현은 [backend/nlq/guard.py](../backend/nlq/guard.py)와 [backend/nlq/identity.py](../backend/nlq/identity.py)다.
 - 2·3번은 허용 목록이다. 트리의 모든 노드(구문, 함수, 형)가 목록에 있어야 하고, 모르는 것은 거부한다. 원문이 아니라 검증한 트리를 다시 만든 SQL을 실행하고, 주석은 버린다.
+- 괄호로 묶은 조인 `LEFT JOIN (a JOIN b ON ...) ON ...`은 sqlglot이 첫 테이블 `a`에 나머지 조인을 붙인 꼴로 파싱한다. guard는 `a`를 행 범위 서브쿼리로 바꾸면서 붙어 있던 조인을 그 서브쿼리로 옮기고, 묶음 안 테이블은 다른 테이블처럼 하나씩 검사하고 바꾼다. 묶음에 별칭을 붙여도(`(a JOIN b) AS j`) 마찬가지다.
+- jsonb 키 존재(`?`, `?|`, `?&`)와 포함(`@>`, `<@`) 연산자는 허용한다. 이미 범위 안에서 읽은 값끼리 비교만 하고 다른 행·테이블·함수에 닿지 않아, `->>`로 값을 꺼내 보는 것 이상을 드러내지 않는다. Odoo 19의 회사별 값(`standard_price` 등)이 `{"회사 id": 값}` jsonb라 `standard_price ? '1'` 꼴로 쓰인다. `jsonb` 형 변환은 여전히 형 허용 목록 밖이다.
 - 테이블 참조가 CTE를 가리키는지는 Postgres의 이름 규칙대로 판단한다. 재귀 아닌 `WITH` 안에서는 앞서 정의된 CTE만 보이고, 서브쿼리의 CTE는 바깥에서 보이지 않는다. 확실하지 않으면 실제 테이블로 보고 검사한다.
 - 사용자가 읽을 수 있는 테이블과 행 범위를 정하는 그룹은 Odoo에서 뽑은 `eval/users.toml`에서, 규칙은 `identity.py`에서 온다. 결정 이유는 [ADR 0003](adr/0003-guard-rules-from-odoo-groups.md).
 - `res_users`는 `company_ids`(다대다)를 열지 않아 `company_id`로 좁힌다. Odoo보다 넓어지지 않는다.
