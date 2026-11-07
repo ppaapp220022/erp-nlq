@@ -79,10 +79,11 @@ git rebase --update-refs origin/main
 git push --force-with-lease origin <아래 브랜치> <맨 위 브랜치>
 ```
 
-**머지:** 아래(main에 가까운 것)부터 스쿼시 머지된다. 모든 PR에 자동 머지를 켜 두면 아래 단계가 차례로 저절로 일어난다.
+**머지:** 아래(main에 가까운 것)부터 스쿼시 머지한다. **자동 머지는 기준이 main인 맨 아래 PR에만 켠다.** 자동 머지는 체크가 통과하면 그 PR의 *기준 브랜치*로 머지하므로, 위 PR에 미리 켜 두면 체크가 이미 통과한 위 PR이 아래 브랜치로 머지되고 두 작업이 main에 커밋 하나로 들어간다(드라이브 troubleshooting `2026-11-07-stacked-pr-automerge-into-base.md`).
 1. 아래 PR이 머지된다. 브랜치가 자동으로 지워지고, 바로 위 PR의 기준은 GitHub이 main으로 옮긴다.
 2. 위 브랜치에는 아래 PR의 **원래 커밋**이 남아 있다. 스쿼시된 커밋과 내용은 같지만 커밋이 달라서, 그대로 두면 충돌한다. [restack 워크플로](../.github/workflows/restack.yml)가 원래 커밋을 떼어 내고 main 위로 옮겨 푸시한 뒤 PR에 코멘트를 남긴다.
-3. 푸시로 `checks`·`ai-review`가 다시 돈다. 통과하면 자동 머지가 위 PR을 머지하고, 다시 1로 돌아간다.
+3. 푸시로 `checks`·`ai-review`가 다시 돈다. 위 PR의 기준이 main인 것을 확인하고 자동 머지를 켠다. 통과하면 머지되고, 다시 1로 돌아간다.
+4. 워크플로 파일을 바꾸는 위 PR은 restack이 옮기지 못한다(아래 "머지 권한"). 아래 PR이 머지되면 손으로 main 위로 옮긴다.
 
 restack이 충돌로 멈추면 PR 코멘트에 적힌 명령으로 직접 옮긴다. 손으로 할 때도 같다.
 
