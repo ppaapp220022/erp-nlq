@@ -82,7 +82,9 @@ def _fake_client(monkeypatch, *, stop_reason="end_turn", sql="SELECT 1"):
 
     def parse(**kwargs):
         calls.append(kwargs)
-        parsed = generate_module._Answer(sql=sql) if stop_reason == "end_turn" else None
+        fmt = kwargs["output_format"]
+        fields = {"kind": "sql", "clarification": "", "options": []} if fmt is generate_module._AnswerOrClarify else {}
+        parsed = fmt(sql=sql, **fields) if stop_reason == "end_turn" else None
         return SimpleNamespace(stop_reason=stop_reason, parsed_output=parsed)
 
     client = SimpleNamespace(messages=SimpleNamespace(parse=parse))

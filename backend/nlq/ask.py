@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 from nlq.execute import execute
 from nlq.generate import generate
-from nlq.models import ExecutionError, Failed, Rows, User
+from nlq.models import Clarification, ExecutionError, Failed, Rows, User
 
 RETRIES = 1  # plan.md: SQL 실패 시 에러를 넣어 1회 재시도
 
@@ -21,14 +21,21 @@ class Attempt:
     model: str
     rows: Rows | None = None
     error: ExecutionError | None = None
+    # 되묻기: 이것이 있으면 sql은 비어 있고 실행하지 않았다
+    clarification: Clarification | None = None
 
 
-def ask(question: str, user: User, retries: int = RETRIES) -> list[Attempt]:
-    """시도마다 하나씩 돌려준다. 마지막 것이 결과다. 생성 실패(GenerationError)는 그대로 올린다."""
+def ask(question: str, user: User, retries: int = RETRIES, clarified: str | None = None) -> list[Attempt]:
+    """시도마다 하나씩 돌려준다. 마지막 것이 결과다. 생성 실패(GenerationError)는 그대로 올린다.
+
+    첫 생성이 되물으면 그 하나만 돌려준다. clarified(고른 기준)를 넣어 다시 부르면 SQL을 만든다.
+    """
     attempts: list[Attempt] = []
     failed: Failed | None = None
     for _ in range(retries + 1):
-        generated = generate(question, user, failed)
+        generated = generate(question, user, failed, clarified)
+        if generated.clarification is not None:
+            return [Attempt(sql="", model=generated.model, clarification=generated.clarification)]
         try:
             rows = execute(generated.sql, user)
         except ExecutionError as e:

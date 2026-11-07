@@ -1,0 +1,13 @@
+id: clarify-002
+role: admin
+question: 고객별 판매 실적
+expect: 주문 기준인지 송장 기준인지
+answer: 송장 기준 매출(부가세 제외, 환불 차감). 회사 구분 없이 고객별 합계
+gold_sql: |
+  SELECT p.name AS customer, sum(m.amount_untaxed_signed) AS revenue
+  FROM account_move m
+  JOIN res_partner p ON p.id = m.commercial_partner_id
+  WHERE m.state = 'posted' AND m.move_type IN ('out_invoice', 'out_refund')
+  GROUP BY p.name
+order_matters: false
+notes: '"실적"은 기준이 정해지지 않았다. 고른 기준은 매출 정의와 같다'

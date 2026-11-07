@@ -1,0 +1,13 @@
+id: clarify-007
+role: admin
+question: San Francisco 회사에서 이번 달 나간 송장 금액은?
+expect: 환불 차감 여부와 부가세 포함 여부
+answer: 고객 송장만, 환불 차감 없이, 부가세 제외
+gold_sql: |
+  SELECT sum(m.amount_untaxed) AS amount
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  WHERE c.name = 'My Company (San Francisco)' AND m.state = 'posted' AND m.move_type = 'out_invoice'
+    AND m.invoice_date >= '2026-11-01' AND m.invoice_date < '2026-12-01'
+order_matters: false
+notes: 송장 금액은 환불 차감과 부가세가 정해지지 않았다

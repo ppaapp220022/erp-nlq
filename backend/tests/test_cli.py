@@ -35,7 +35,7 @@ def test_format_table_reports_truncation():
 
 def test_question_goes_through_generate_and_execute(monkeypatch, capsys):
     seen = {}
-    monkeypatch.setattr(ask, "generate", lambda q, user, failed: seen.setdefault("gen", (q, user)) and GeneratedSQL("SELECT 1", "m"))
+    monkeypatch.setattr(ask, "generate", lambda q, user, failed, clarified: seen.setdefault("gen", (q, user)) and GeneratedSQL("SELECT 1", "m"))
     monkeypatch.setattr(ask, "execute", lambda sql, user: seen.setdefault("exec", (sql, user)) and _rows())
     assert cli.main(["매출", "--user", "stock.choi"]) == 0
     assert seen["gen"][0] == "매출"
@@ -67,7 +67,7 @@ def test_failed_sql_is_regenerated_once(monkeypatch, capsys):
     # 자기 수정: 첫 SQL이 실패하면 오류를 넣어 다시 만들고, 그 결과를 보여 준다
     calls = []
 
-    def fake_generate(q, user, failed):
+    def fake_generate(q, user, failed, clarified):
         calls.append(failed)
         return GeneratedSQL("SELECT bad" if failed is None else "SELECT 1", "m")
 

@@ -1,0 +1,13 @@
+id: clarify-005
+role: stock.choi
+question: 확정 발주 금액을 공급사별로
+expect: 부가세 포함 여부
+answer: 부가세 포함
+gold_sql: |
+  SELECT p.name AS vendor, sum(o.amount_total) AS amount
+  FROM purchase_order o
+  JOIN res_partner p ON p.id = o.partner_id
+  WHERE o.state = 'purchase'
+  GROUP BY p.name
+order_matters: false
+notes: 발주 금액은 부가세 포함·제외가 정해지지 않았다

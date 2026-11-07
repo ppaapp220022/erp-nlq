@@ -1,0 +1,11 @@
+id: clarify-003
+role: sales.kim
+question: 내 판매 실적이 얼마야?
+expect: 주문 기준인지 송장 기준인지
+answer: 확정 주문 기준, 부가세 제외 합계
+gold_sql: |
+  SELECT sum(amount_untaxed) AS amount
+  FROM sale_order
+  WHERE state = 'sale' AND user_id = 7
+order_matters: false
+notes: 질문의 "내"는 질문한 사용자(res_users.id 7)

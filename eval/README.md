@@ -4,6 +4,7 @@
 |---|---|---|
 | `questions/` | 평가용 50문항. 점수는 여기서만 낸다 | **안 된다** (CLAUDE.md 절대 규칙 4) |
 | `examples/` | few-shot 예시, RAG 예시 검색 대상 | 된다 |
+| `clarify/` | 되묻기 세트. 기준이 갈리는 질문과, 기준을 고른 뒤의 정답 | **안 된다** |
 
 같은 질문, 또는 숫자·이름만 바꾼 질문을 두 폴더에 함께 두지 않는다. 외부 데이터셋(Hugging Face odoo-sql-query-dataset 등)은 `examples/`에만 넣는다.
 
@@ -54,6 +55,24 @@ notes: 견적 = draft·sent
 - 문항과 같은 질문, 숫자·이름만 바꾼 질문, 같은 결과를 내는 질문은 두지 않는다. `test_eval_questions.py`가 질문 문장 일치, 글자 2-gram 유사도(0.5 이상), 결과 일치를 검사한다. 유사도 기준은 느슨하므로 예시를 더할 때는 가장 가까운 문항을 눈으로도 확인한다.
 - 예시 SQL도 `role` 사용자로 실행해 결과가 비지 않아야 한다.
 
+## 되묻기 세트 형식
+
+`clarify/`는 주문/송장 기준, 부가세, 환불 차감 중 하나가 갈리는 질문이다. 평가 문항처럼 프롬프트에 쓰지 않는다.
+
+```yaml
+id: clarify-001
+role: admin
+question: 이번 달 판매액을 회사별로
+expect: 주문 기준인지 송장 기준인지   # 사람이 읽는 메모. 채점하지 않는다
+answer: 확정 주문 기준, 부가세 제외   # 되물음에 대한 답. clarified로 넣는다
+gold_sql: |                           # answer 기준의 정답
+  SELECT ...
+order_matters: false
+notes: ...
+```
+
+`--clarify-set`은 문항마다 두 번 묻는다. 처음에는 그대로 물어 되묻는지 보고(되물음), 다음에는 `answer`를 넣어 정답과 비교한다(기준을 고른 뒤 정답). 처음에 바로 답한 문항도 두 번째는 따로 채점한다.
+
 ## 채점
 
 ```bash
@@ -63,6 +82,8 @@ uv run --directory backend nlq-eval sales-001 stock-002        # 일부만
 uv run --directory backend nlq-eval --prompt schema            # 비교 기준 1: OKF 묶음 없이 (기본 okf)
 uv run --directory backend nlq-eval --retries 0                # 자기 수정 없이 (기본 1회)
 uv run --directory backend nlq-eval --retrieve embedding       # 비슷한 예시 3개를 사용자 메시지에 넣어 (기본 keyword, none은 넣지 않음)
+uv run --directory backend nlq-eval --clarify off              # 되묻기 없이 (기본 on)
+uv run --directory backend nlq-eval --clarify-set              # 되묻기 세트: 되묻는지, 기준을 고른 뒤 맞히는지
 ```
 
 비교 규칙은 [backend/nlq/scoring.py](../backend/nlq/scoring.py)에 있다.
@@ -70,7 +91,7 @@ uv run --directory backend nlq-eval --retrieve embedding       # 비슷한 예�
 - 열 이름은 무시한다. 생성 결과에 열이 더 있어도(이름·id 열을 덧붙인 경우) 정답 열이 모두 같은 행에 들어 있으면 맞다. 행은 더 있거나 모자라면 틀리다.
 - 숫자는 소수 둘째 자리로 맞춘다(5와 5.00은 같다). 자정 시각의 timestamp는 날짜와 같다. 시각이 있는 timestamp는 날짜와 다르다. 질문이 날짜(주문일 등)를 물으면 날짜로 내야 맞다.
 - 행 수 제한(1,000행)으로 잘린 결과는 틀린 것으로 본다.
-- 결과는 `correct`, `wrong`, `generation_error`, `guard_rejected`, `execution_error` 중 하나다. 정답 SQL이 실행되지 않으면 채점을 멈춘다.
+- 결과는 `correct`, `wrong`, `clarification`, `generation_error`, `guard_rejected`, `execution_error` 중 하나다. 평가 문항은 기준이 정해진 질문이라 되물으면(`clarification`) 틀린 것으로 본다. 정답 SQL이 실행되지 않으면 채점을 멈춘다.
 - 실행 결과는 `eval/results/<시각>-<모델>-<변형>.json`(git 제외)에 모델, 프롬프트 변형(`okf`·`schema`)과 버전(시스템 프롬프트 해시)과 함께 남는다. 점수는 모델별로 따로 적고, Haiku와 Opus 점수를 섞지 않는다.
 - 생성 SQL이 실행되지 않으면(guard 거부·실행 오류) 오류를 넣어 한 번 다시 만들고 마지막 시도를 채점한다(자기 수정, `--retries`, 기본 1). 결과 표의 "재시도"는 다시 만든 문항 수, "재시도로 정답"은 그중 맞힌 수다. 결과 파일에는 `retries` 설정과 문항별 `retried`·`first_error`가 남는다. M4 결과 표는 자기 수정 전이라 `--retries 0`과 같다.
 - 예시 검색은 `NLQ_RETRIEVE`(또는 `--retrieve`)로 고른다. `keyword`는 질문 글자 2-gram BM25, `embedding`은 다국어 문장 임베딩이고, 질문한 사용자가 읽을 수 있는 테이블만 쓰는 예시 중 3개를 고른다([backend/nlq/retrieve.py](../backend/nlq/retrieve.py), [ADR 0004](../docs/adr/0004-example-retrieval-in-memory.md)). 결과 파일 이름에 검색 방식이 붙고, 문항별 `examples`에 넣은 예시 id, `examples_version`에 예시 묶음 해시가 남는다.

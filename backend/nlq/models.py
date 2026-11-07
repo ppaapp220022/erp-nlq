@@ -20,13 +20,21 @@ class User:
 
 
 @dataclass(frozen=True)
+class Clarification:
+    """질문이 업무 기준(주문/송장, 부가세, 환불) 중 하나에서 갈려 SQL 대신 되묻는 질문 (M5)."""
+
+    question: str
+    options: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class GeneratedSQL:
     """generate()의 결과. 신뢰하지 않는 값이다. execute()가 다시 검증한다."""
 
     sql: str
     model: str
-    # 되묻기(M5)가 필요하면 sql 대신 질문을 돌려준다.
-    clarification: str | None = None
+    # 되묻기(M5)가 필요하면 sql은 빈 문자열이고 이것을 돌려준다.
+    clarification: Clarification | None = None
 
 
 @dataclass(frozen=True)
