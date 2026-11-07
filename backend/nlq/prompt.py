@@ -51,14 +51,19 @@ def prompt_variant() -> str:
     return variant
 
 
-def doc_tables(path: Path) -> list[str]:
-    """OKF 문서 앞머리의 tables (docs/architecture.md "지식 층")."""
+def doc_tables(path: Path) -> list[str] | None:
+    """OKF 문서 앞머리의 tables (docs/architecture.md "지식 층"). 앞머리나 tables가 없으면 None."""
     match = re.match(r"---\n(.*?)\n---\n", path.read_text(), re.S)
-    return list(yaml.safe_load(match.group(1)).get("tables", [])) if match else []
+    meta = yaml.safe_load(match.group(1)) if match else None
+    tables = meta.get("tables") if isinstance(meta, dict) else None
+    return list(tables) if isinstance(tables, list) and tables else None
 
 
-def _readable(tables: list[str], user: User | None) -> bool:
-    return user is None or all(can_read(t, user) for t in tables)
+def _readable(tables: list[str] | None, user: User | None) -> bool:
+    # tables를 모르는 문서는 역할이 있는 사용자에게 넣지 않는다(실패 시 닫힘)
+    if user is None:
+        return True
+    return tables is not None and all(can_read(t, user) for t in tables)
 
 
 def _schema(user: User | None) -> str:

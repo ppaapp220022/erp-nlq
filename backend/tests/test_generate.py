@@ -137,7 +137,7 @@ def test_prompt_has_only_readable_tables_and_docs(login):
             continue
         tag = f'<doc path="{path.relative_to(KNOWLEDGE)}">'
         # 문서의 tables가 하나라도 역할 밖이면 뺀다 (docs/architecture.md "지식 층")
-        assert (tag in prompt) == (set(doc_tables(path)) <= user.tables), tag
+        assert (tag in prompt) == (set(doc_tables(path) or ['?']) <= user.tables), tag
 
 
 def test_stock_user_prompt_has_no_customer_invoices():
@@ -146,6 +146,16 @@ def test_stock_user_prompt_has_no_customer_invoices():
     prompt = system_prompt("okf", PERSONAS["stock.choi"].user)
     assert "account_move(" not in prompt
     assert '<doc path="tables/account_move.md">' not in prompt
+
+
+@pytest.mark.parametrize("text", ["본문만 있다\n", "---\n---\n본문\n", "---\ntype: pitfall\n---\n본문\n", "---\ntables: []\n---\n"])
+def test_doc_without_tables_is_left_out(tmp_path, text):
+    # 앞머리나 tables가 없는 문서는 어느 역할에도 넣지 않는다(실패 시 닫힘)
+    path = tmp_path / "doc.md"
+    path.write_text(text)
+    assert doc_tables(path) is None
+    prompt_module = importlib.import_module("nlq.prompt")
+    assert not prompt_module._readable(doc_tables(path), PERSONAS["admin"].user)
 
 
 def test_user_without_tables_gets_no_schema():
