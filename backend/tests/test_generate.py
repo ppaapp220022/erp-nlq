@@ -11,7 +11,7 @@ from types import SimpleNamespace
 import pytest
 
 from nlq import GenerationError, User, generate
-from nlq.prompt import KNOWLEDGE, SCHEMA, system_prompt, user_message
+from nlq.prompt import KNOWLEDGE, SCHEMA, VARIANTS, system_prompt, user_message
 from nlq.settings import ROOT, eval_today
 
 generate_module = importlib.import_module("nlq.generate")
@@ -34,9 +34,29 @@ def test_system_prompt_has_schema_and_every_knowledge_doc():
         assert (tag in prompt) == (path.name != "README.md")
 
 
-def test_no_eval_question_in_prompt():
+def test_schema_variant_drops_only_knowledge():
+    # 비교 기준 1: OKF 묶음과 그것을 가리키는 지침만 빠지고 나머지는 같다.
+    okf, schema = system_prompt("okf"), system_prompt("schema")
+    assert "<knowledge>" in okf and "<knowledge>" not in schema
+    assert SCHEMA.read_text().strip() in schema
+    assert f"DATE '{eval_today()}'" in schema
+    rule = next(line for line in okf.splitlines() if "<knowledge>의" in line)
+    assert okf.split("\n<knowledge>\n")[0].replace(rule + "\n", "") == schema
+
+
+def test_prompt_variant_from_setting(monkeypatch):
+    assert system_prompt() == system_prompt("okf")
+    monkeypatch.setenv("NLQ_PROMPT", "schema")
+    assert system_prompt() == system_prompt("schema")
+    monkeypatch.setenv("NLQ_PROMPT", "nope")
+    with pytest.raises(RuntimeError, match="NLQ_PROMPT"):
+        system_prompt()
+
+
+@pytest.mark.parametrize("variant", VARIANTS)
+def test_no_eval_question_in_prompt(variant):
     # 절대 규칙 4: 평가 문항은 프롬프트에 들어가지 않는다.
-    prompt = system_prompt()
+    prompt = system_prompt(variant)
     for q in (ROOT / "eval" / "questions").glob("*.yaml"):
         for question in re.findall(r"^question:\s*(.+)$", q.read_text(), re.M):
             assert question.strip() not in prompt, q.name
@@ -71,6 +91,13 @@ def test_generate_caches_system_prompt_and_uses_configured_model(monkeypatch):
     assert call["model"] == "claude-opus-5-5"
     assert call["system"][0]["cache_control"] == {"type": "ephemeral"}
     assert "고유한-질문-문자열" not in call["system"][0]["text"]
+
+
+def test_generate_uses_configured_prompt_variant(monkeypatch):
+    calls = _fake_client(monkeypatch)
+    monkeypatch.setenv("NLQ_PROMPT", "schema")
+    generate("질문", USER)
+    assert calls[0]["system"][0]["text"] == system_prompt("schema")
 
 
 @pytest.mark.parametrize("stop_reason", ["refusal", "max_tokens"])

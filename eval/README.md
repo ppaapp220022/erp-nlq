@@ -43,6 +43,7 @@ notes: 매출 = 확정 고객 송장 - 환불, 부가세 제외
 uv run --directory backend nlq-eval                            # 전체, EVAL_MODEL(기본 claude-haiku-5-5)
 uv run --directory backend nlq-eval --model claude-opus-5-5    # 결과 표용 측정
 uv run --directory backend nlq-eval sales-001 stock-002        # 일부만
+uv run --directory backend nlq-eval --prompt schema            # 비교 기준 1: OKF 묶음 없이 (기본 okf)
 ```
 
 비교 규칙은 [backend/nlq/scoring.py](../backend/nlq/scoring.py)에 있다.
@@ -51,4 +52,5 @@ uv run --directory backend nlq-eval sales-001 stock-002        # 일부만
 - 숫자는 소수 둘째 자리로 맞춘다(5와 5.00은 같다). 자정 시각의 timestamp는 날짜와 같다. 시각이 있는 timestamp는 날짜와 다르다. 질문이 날짜(주문일 등)를 물으면 날짜로 내야 맞다.
 - 행 수 제한(1,000행)으로 잘린 결과는 틀린 것으로 본다.
 - 결과는 `correct`, `wrong`, `generation_error`, `guard_rejected`, `execution_error` 중 하나다. 정답 SQL이 실행되지 않으면 채점을 멈춘다.
-- 실행 결과는 `eval/results/<시각>-<모델>.json`(git 제외)에 모델과 프롬프트 버전(시스템 프롬프트 해시)과 함께 남는다. 점수는 모델별로 따로 적고, Haiku와 Opus 점수를 섞지 않는다.
+- 실행 결과는 `eval/results/<시각>-<모델>-<변형>.json`(git 제외)에 모델, 프롬프트 변형(`okf`·`schema`)과 버전(시스템 프롬프트 해시)과 함께 남는다. 점수는 모델별로 따로 적고, Haiku와 Opus 점수를 섞지 않는다.
+- 프롬프트 변형은 `NLQ_PROMPT`(또는 `--prompt`)로 고른다. `okf`는 지침 + 열 목록 + OKF 묶음, `schema`는 OKF 묶음과 그것을 가리키는 지침 한 줄만 뺀 비교 기준 1이다([backend/nlq/prompt.py](../backend/nlq/prompt.py)).
