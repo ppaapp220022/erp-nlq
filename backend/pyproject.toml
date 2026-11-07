@@ -18,6 +18,7 @@ dependencies = [
 nlq = "nlq.cli:main"
 nlq-eval = "nlq.evaluate:main"
 nlq-api = "nlq.api:main"
+nlq-report = "nlq.report_check:main"
 
 [dependency-groups]
 dev = ["httpx", "pytest"]
