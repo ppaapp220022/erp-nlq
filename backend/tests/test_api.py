@@ -11,7 +11,7 @@ import psycopg
 import pytest
 from fastapi.testclient import TestClient
 
-from nlq import GeneratedSQL, GenerationError, api
+from nlq import Failed, GeneratedSQL, GenerationError, api
 from nlq.settings import readonly_conninfo
 
 client = TestClient(api.app)
@@ -44,8 +44,9 @@ def test_users_lists_login_and_role_only():
 def test_generate_returns_sql_and_model(monkeypatch):
     seen = {}
 
-    def fake_generate(question, user):
+    def fake_generate(question, user, failed):
         seen["args"] = (question, user.login)
+        seen["failed"] = failed
         return GeneratedSQL(sql="SELECT 1", model="claude-haiku-5-5")
 
     monkeypatch.setattr(api, "generate", fake_generate)
@@ -53,10 +54,26 @@ def test_generate_returns_sql_and_model(monkeypatch):
     assert res.status_code == 200
     assert res.json() == {"sql": "SELECT 1", "model": "claude-haiku-5-5"}
     assert seen["args"] == ("주문 수", "sales.kim")
+    assert seen["failed"] is None
+
+
+def test_generate_passes_failed_attempt(monkeypatch):
+    # 자기 수정: 화면이 실패한 SQL과 오류를 넘기면 generate()에 그대로 간다
+    seen = {}
+
+    def fake_generate(question, user, failed):
+        seen["failed"] = failed
+        return GeneratedSQL(sql="SELECT 2", model="m")
+
+    monkeypatch.setattr(api, "generate", fake_generate)
+    failed = {"sql": "SELECT bad", "error": 'column "bad" does not exist'}
+    res = client.post("/generate", json={"question": "주문 수", "user": "sales.kim", "failed": failed})
+    assert res.status_code == 200
+    assert seen["failed"] == Failed(**failed)
 
 
 def test_generate_error_is_reported(monkeypatch):
-    def fail(question, user):
+    def fail(question, user, failed):
         raise GenerationError("SQL을 만들지 못했다 (stop_reason=refusal)")
 
     monkeypatch.setattr(api, "generate", fail)

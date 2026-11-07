@@ -4,7 +4,7 @@
 
 엔드포인트는 셋이다(docs/architecture.md "함수 경계").
   GET  /users      고를 수 있는 사용자(login, 역할 이름)
-  POST /generate   질문 → SQL. 결과는 신뢰하지 않는다
+  POST /generate   질문 → SQL. 결과는 신뢰하지 않는다. failed(앞 SQL과 오류)를 주면 고쳐 쓴다(자기 수정)
   POST /execute    SQL → 결과. 권한은 여기서 execute()가 강제한다
 
 사용자는 화면의 역할 선택으로 정한다. 로그인이 없는 데모라서, 이 API는 127.0.0.1에만 연다.
@@ -21,7 +21,7 @@ from decimal import Decimal
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from nlq import ExecutionError, GenerationError, execute, generate
+from nlq import ExecutionError, Failed, GenerationError, execute, generate
 from nlq.models import GuardError, User
 from nlq.users import load_users
 
@@ -29,13 +29,20 @@ HOST = "127.0.0.1"
 PORT = 8000
 MAX_QUESTION = 1_000
 MAX_SQL = 20_000
+MAX_ERROR = 2_000
 
 app = FastAPI(title="erp-nlq", docs_url=None, redoc_url=None, openapi_url=None)
+
+
+class FailedAttempt(BaseModel):
+    sql: str = Field(min_length=1, max_length=MAX_SQL)
+    error: str = Field(min_length=1, max_length=MAX_ERROR)
 
 
 class GenerateRequest(BaseModel):
     question: str = Field(min_length=1, max_length=MAX_QUESTION)
     user: str
+    failed: FailedAttempt | None = None
 
 
 class ExecuteRequest(BaseModel):
@@ -51,7 +58,8 @@ def users() -> list[dict[str, str]]:
 @app.post("/generate")
 def generate_sql(req: GenerateRequest) -> dict[str, str]:
     try:
-        generated = generate(req.question, _user(req.user))
+        failed = Failed(sql=req.failed.sql, error=req.failed.error) if req.failed else None
+        generated = generate(req.question, _user(req.user), failed)
     except GenerationError as e:
         raise _error(502, "generation_error", str(e)) from e
     return {"sql": generated.sql, "model": generated.model}

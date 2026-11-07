@@ -6,7 +6,7 @@ from decimal import Decimal
 import psycopg
 import pytest
 
-from nlq import evaluate
+from nlq import ask, evaluate
 from nlq.models import GeneratedSQL, Rows
 from nlq.scoring import matches
 from nlq.settings import readonly_conninfo
@@ -86,8 +86,16 @@ def _db_available() -> bool:
 db = pytest.mark.skipif(not _db_available(), reason="nlq_readonly로 접속할 DB가 없다")
 
 
-def fake_generate(sql):
-    return lambda question, user: GeneratedSQL(sql=sql, model="fake")
+def fake_generate(*sqls):
+    """시도마다 sqls에서 하나씩 낸다. 마지막 것을 계속 낸다."""
+    calls = []
+
+    def generate(question, user, failed=None):
+        calls.append(failed)
+        return GeneratedSQL(sql=sqls[min(len(calls), len(sqls)) - 1], model="fake")
+
+    generate.calls = calls
+    return generate
 
 
 @db
@@ -102,8 +110,37 @@ def fake_generate(sql):
 )
 def test_run_one(monkeypatch, sql, status):
     q = evaluate.load_questions(["stock-003"])[0]
-    monkeypatch.setattr(evaluate, "generate", fake_generate(sql or q["gold_sql"]))
-    assert evaluate.run_one(q).status == status
+    monkeypatch.setattr(ask, "generate", fake_generate(sql or q["gold_sql"]))
+    assert evaluate.run_one(q, retries=0).status == status
+
+
+@db
+def test_run_one_retries_failed_sql(monkeypatch):
+    # 자기 수정: 첫 SQL이 실패하면 오류를 넣어 한 번 다시 만들고, 마지막 시도를 채점한다
+    q = evaluate.load_questions(["stock-003"])[0]
+    fake = fake_generate("SELECT no_such_column FROM sale_order", q["gold_sql"])
+    monkeypatch.setattr(ask, "generate", fake)
+    result = evaluate.run_one(q)
+    assert (result.status, result.retried) == ("correct", 1)
+    assert "no_such_column" in result.first_error
+    assert fake.calls[0] is None and "no_such_column" in fake.calls[1].error
+
+
+@db
+@pytest.mark.parametrize(
+    ("sqls", "status", "calls"),
+    [
+        (("SELECT * FROM pg_roles",), "guard_rejected", 2),  # 다시 만들어도 실패하면 마지막 오류
+        (("SELECT * FROM pg_roles",), "guard_rejected", 1),  # retries=0: 다시 만들지 않는다
+        (("SELECT 1",), "wrong", 1),  # 실행은 됐으나 틀린 답은 다시 만들지 않는다
+    ],
+)
+def test_run_one_retry_limits(monkeypatch, sqls, status, calls):
+    q = evaluate.load_questions(["stock-003"])[0]
+    fake = fake_generate(*sqls)
+    monkeypatch.setattr(ask, "generate", fake)
+    assert evaluate.run_one(q, retries=calls - 1).status == status
+    assert len(fake.calls) == calls
 
 
 def test_summary_table():
@@ -111,7 +148,9 @@ def test_summary_table():
         evaluate.Result(id="sales-001", area="판매", role="demo", status="correct"),
         evaluate.Result(id="sales-002", area="판매", role="demo", status="guard_rejected"),
         evaluate.Result(id="stock-001", area="재고", role="demo", status="wrong"),
+        evaluate.Result(id="stock-002", area="재고", role="demo", status="correct", retried=1),
     ]
     table = evaluate.format_summary(evaluate.summarize(results))
-    assert "| 판매 | 1 | 2 | 50% | 0 | 1 | 0 |" in table
-    assert "| 전체 | 1 | 3 | 33% |" in table
+    assert "| 판매 | 1 | 2 | 50% | 0 | 1 | 0 | 0 | 0 |" in table
+    assert "| 재고 | 1 | 2 | 50% | 0 | 0 | 0 | 1 | 1 |" in table
+    assert "| 전체 | 2 | 4 | 50% |" in table

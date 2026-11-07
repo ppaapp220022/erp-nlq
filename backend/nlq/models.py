@@ -29,6 +29,14 @@ class GeneratedSQL:
     clarification: str | None = None
 
 
+@dataclass(frozen=True)
+class Failed:
+    """앞서 만든 SQL과 execute()가 낸 오류. 자기 수정(M5)이 generate()에 다시 넣는다."""
+
+    sql: str
+    error: str
+
+
 class GenerationError(Exception):
     """generate()가 SQL을 만들지 못했다 (거절, 출력 한도 초과 등)."""
 

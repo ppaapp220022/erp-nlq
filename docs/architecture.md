@@ -27,9 +27,19 @@ flowchart LR
 ## 함수 경계
 
 ```python
-def generate(question: str, user: User) -> GeneratedSQL: ...   # LLM. 실패해도 안전
+def generate(question: str, user: User, failed: Failed | None = None) -> GeneratedSQL: ...   # LLM. 실패해도 안전
 def execute(sql: str, user: User) -> Rows: ...                   # 권한 강제 + 실행. DB로 가는 유일한 길
 ```
+
+### 자기 수정 (M5)
+
+`execute`가 실패하면(guard 거부, DB 오류, 시간 초과) 그 SQL과 오류 메시지를 `generate(question, user, failed)`에 넣어 SQL을 **한 번** 다시 만들고 다시 `execute`한다. 순서는 [backend/nlq/ask.py](../backend/nlq/ask.py)의 `ask()`가 갖고 CLI와 평가가 쓴다. 화면은 같은 순서를 `POST /generate`(`failed` 포함)와 `POST /execute`로 밟는다.
+
+- 다시 만든 SQL도 신뢰하지 않는다. `execute`가 처음부터 다시 검증하므로 재시도는 권한 범위를 넓히지 않는다. `ask()`는 두 함수를 부를 뿐 DB나 guard에 직접 닿지 않는다(`tests/test_boundary.py`).
+- guard 거부 이유도 LLM에 돌려준다. 이유는 어떤 구문·테이블이 막혔는지뿐이고, 그것을 알고 다시 써도 범위 밖 행은 나오지 않는다.
+- DB 오류 첫 줄에 범위 안 행의 값이 섞일 수 있다(예: 형 변환 실패한 값). 질문과 같은 길로 Claude API에만 가고 로그에는 남기지 않는다(절대 규칙 6).
+- 실행은 됐지만 틀린 답은 다시 만들지 않는다. 정답을 모르는 상태에서는 틀렸는지 알 수 없기 때문이다.
+- 시스템 프롬프트(캐시)는 바꾸지 않고, 앞 SQL과 오류는 사용자 메시지에 붙인다.
 
 M4에서 [backend/nlq/api.py](../backend/nlq/api.py)(FastAPI)가 각각 `POST /generate`, `POST /execute`로 감쌌다. 화면은 이 두 API와 사용자 목록(`GET /users`, login과 역할 이름만)만 안다. 화면에는 로그인이 없고 사용자를 역할 선택으로 고르므로, API는 127.0.0.1에만 연다. 질문·SQL·결과는 로그에 남기지 않는다.
 
