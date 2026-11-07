@@ -1,0 +1,13 @@
+id: purchase-010
+area: 구매
+role: stock.choi
+question: 견적 요청을 포함해 발주가 2건 이상인 공급사와 건수
+gold_sql: |
+  SELECT p.name AS vendor, count(*) AS orders
+  FROM purchase_order o
+  JOIN res_partner p ON p.id = o.partner_id
+  WHERE o.state <> 'cancel'
+  GROUP BY p.name
+  HAVING count(*) >= 2
+order_matters: false
+notes: 취소(cancel)는 뺀다. 지금 데이터에는 취소 발주가 없어서 상태 조건이 없어도 결과는 같다

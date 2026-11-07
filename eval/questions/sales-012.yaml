@@ -1,0 +1,16 @@
+id: sales-012
+area: 판매
+role: admin
+question: 품목별 수주액(부가세 제외) 상위 5개
+gold_sql: |
+  SELECT t.name->>'en_US' AS product, sum(l.price_subtotal) AS amount_untaxed
+  FROM sale_order_line l
+  JOIN sale_order o ON o.id = l.order_id
+  JOIN product_product pp ON pp.id = l.product_id
+  JOIN product_template t ON t.id = pp.product_tmpl_id
+  WHERE o.state = 'sale' AND l.display_type IS NULL
+  GROUP BY pp.id, t.name->>'en_US'
+  ORDER BY amount_untaxed DESC
+  LIMIT 5
+order_matters: true
+notes: 수주액 = 확정 주문 라인 price_subtotal(knowledge/metrics/revenue.md). 송장 기준 매출과 다르다. 품목은 변형 단위

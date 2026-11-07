@@ -1,0 +1,14 @@
+id: purchase-012
+area: 구매
+role: stock.choi
+question: 확정 발주에서 매입 단가가 판매가보다 비싼 품목. 품목, 발주 번호, 매입 단가, 판매가
+gold_sql: |
+  SELECT t.name->>'en_US' AS product, o.name AS order_name, l.price_unit, t.list_price
+  FROM purchase_order_line l
+  JOIN purchase_order o ON o.id = l.order_id
+  JOIN product_product pp ON pp.id = l.product_id
+  JOIN product_template t ON t.id = pp.product_tmpl_id
+  WHERE o.state = 'purchase' AND l.display_type IS NULL
+    AND l.price_unit > t.list_price
+order_matters: false
+notes: 판매가는 product_template.list_price. 발주 라인 하나가 한 행이다

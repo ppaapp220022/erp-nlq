@@ -1,0 +1,13 @@
+id: sales-009
+area: 판매
+role: sales.park
+question: 고객별 확정 주문 한 건당 평균 금액 (부가세 제외)
+gold_sql: |
+  SELECT cp.name AS customer, avg(o.amount_untaxed) AS avg_amount
+  FROM sale_order o
+  JOIN res_partner p ON p.id = o.partner_id
+  JOIN res_partner cp ON cp.id = p.commercial_partner_id
+  WHERE o.state = 'sale'
+  GROUP BY cp.id, cp.name
+order_matters: false
+notes: 고객은 거래처 회사 단위(commercial_partner_id). 영업 사원 범위 안의 주문만 평균한다

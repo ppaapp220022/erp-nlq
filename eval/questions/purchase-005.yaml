@@ -1,0 +1,11 @@
+id: purchase-005
+area: 구매
+role: admin
+question: 10월에 확정한 발주는 몇 건이고 부가세 빼고 얼마야?
+gold_sql: |
+  SELECT count(*) AS orders, sum(amount_untaxed) AS amount_untaxed
+  FROM purchase_order
+  WHERE state = 'purchase'
+    AND date_approve >= '2026-10-01' AND date_approve < '2026-11-01'
+order_matters: false
+notes: 확정한 날은 date_approve다. date_order는 주문 날짜라 확정일과 다를 수 있다(지금 데이터에서는 10월로 자르면 결과가 같다)

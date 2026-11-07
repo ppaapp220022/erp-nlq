@@ -1,0 +1,11 @@
+id: purchase-011
+area: 구매
+role: stock.choi
+question: 확정했는데 입고 문서가 아직 만들어지지 않은 발주. 발주 번호와 공급사
+gold_sql: |
+  SELECT o.name, p.name AS vendor
+  FROM purchase_order o
+  JOIN res_partner p ON p.id = o.partner_id
+  WHERE o.state = 'purchase' AND o.receipt_status IS NULL
+order_matters: false
+notes: 입고 문서가 없으면 receipt_status가 NULL이다. pending은 문서가 있고 아직 안 끝난 것이라 빼야 맞다(knowledge/pitfalls/status-null.md)

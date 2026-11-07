@@ -1,0 +1,13 @@
+id: sales-007
+area: 판매
+role: admin
+question: 거래처 회사별 확정 주문 금액 합계 (부가세 제외)
+gold_sql: |
+  SELECT cp.name AS customer, sum(o.amount_untaxed) AS amount_untaxed
+  FROM sale_order o
+  JOIN res_partner p ON p.id = o.partner_id
+  JOIN res_partner cp ON cp.id = p.commercial_partner_id
+  WHERE o.state = 'sale'
+  GROUP BY cp.id, cp.name
+order_matters: false
+notes: 주문의 partner_id는 담당자일 수 있어서 commercial_partner_id로 회사 단위로 묶는다(knowledge/pitfalls/res-partner-mixed.md)

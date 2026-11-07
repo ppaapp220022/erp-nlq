@@ -1,0 +1,11 @@
+id: sales-013
+area: 판매
+role: sales.kim
+question: 담당 영업 사원이 정해지지 않은 주문 목록. 주문 번호, 고객, 상태, 부가세 제외 금액
+gold_sql: |
+  SELECT o.name, p.name AS customer, o.state, o.amount_untaxed
+  FROM sale_order o
+  JOIN res_partner p ON p.id = o.partner_id
+  WHERE o.user_id IS NULL
+order_matters: false
+notes: 상태 조건이 없으므로 견적도 포함한다. 담당자 없는 주문은 모든 영업 사원이 본다(Odoo sale_order_personal_rule)

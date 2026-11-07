@@ -1,0 +1,12 @@
+id: sales-011
+area: 판매
+role: sales.lee
+question: 이번 주에 들어온 확정 주문 보여줘. 주문 번호, 고객, 부가세 제외 금액
+gold_sql: |
+  SELECT o.name, p.name AS customer, o.amount_untaxed
+  FROM sale_order o
+  JOIN res_partner p ON p.id = o.partner_id
+  WHERE o.state = 'sale'
+    AND o.date_order >= '2026-11-02' AND o.date_order < '2026-11-09'
+order_matters: false
+notes: 이번 주 = today(2026-11-03, 화요일)가 든 월요일~일요일. PostgreSQL date_trunc('week')와 같다

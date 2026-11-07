@@ -1,0 +1,11 @@
+id: sales-010
+area: 판매
+role: admin
+question: 확정 주문을 한 번이라도 한 고객은 몇 곳이야?
+gold_sql: |
+  SELECT count(DISTINCT p.commercial_partner_id) AS customers
+  FROM sale_order o
+  JOIN res_partner p ON p.id = o.partner_id
+  WHERE o.state = 'sale'
+order_matters: false
+notes: 고객 수는 문서에 등장한 commercial_partner_id를 센다. res_partner 전체나 customer_rank로 세면 틀린다
