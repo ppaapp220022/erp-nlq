@@ -3,6 +3,9 @@
 시스템 프롬프트는 질문과 상관없이 같은 바이트여야 캐시된다(접두어 일치). 그래서 지침, 열 목록,
 OKF 묶음만 넣고, 질문과 사용자는 사용자 메시지에 둔다. 평가 문항(eval/questions/)은 읽지 않는다.
 
+열 목록과 OKF 묶음은 사용자가 읽을 수 있는 테이블로 거른다(M5). 역할마다 프롬프트가 달라 캐시도 역할마다 따로다.
+거르는 것은 정보 노출을 줄이는 장치이고 권한을 지키는 장치가 아니다. 권한은 execute()가 강제한다.
+
 변형은 둘이다. NLQ_PROMPT로 고른다.
   okf     지침 + 열 목록 + OKF 묶음 (기본)
   schema  지침 + 열 목록. 비교 기준 1(프롬프트만 쓴 버전). OKF 묶음과 그것을 가리키는 지침 한 줄만 뺀다
@@ -10,6 +13,12 @@ OKF 묶음만 넣고, 질문과 사용자는 사용자 메시지에 둔다. 평�
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
+import yaml
+
+from nlq.identity import can_read
 from nlq.models import Failed, User
 from nlq.settings import ROOT, eval_today, setting
 
@@ -42,17 +51,38 @@ def prompt_variant() -> str:
     return variant
 
 
-def _knowledge() -> str:
+def doc_tables(path: Path) -> list[str]:
+    """OKF 문서 앞머리의 tables (docs/architecture.md "지식 층")."""
+    match = re.match(r"---\n(.*?)\n---\n", path.read_text(), re.S)
+    return list(yaml.safe_load(match.group(1)).get("tables", [])) if match else []
+
+
+def _readable(tables: list[str], user: User | None) -> bool:
+    return user is None or all(can_read(t, user) for t in tables)
+
+
+def _schema(user: User | None) -> str:
+    # schema.txt는 한 줄에 테이블 하나: "테이블(열 형, ...)"
+    lines = SCHEMA.read_text().strip().splitlines()
+    return "\n".join(line for line in lines if _readable([line.split("(", 1)[0]], user))
+
+
+def _knowledge(user: User | None) -> str:
     docs = sorted(p for p in KNOWLEDGE.rglob("*.md") if p.name != "README.md")
-    return "\n\n".join(f'<doc path="{p.relative_to(KNOWLEDGE)}">\n{p.read_text().strip()}\n</doc>' for p in docs)
+    return "\n\n".join(
+        f'<doc path="{p.relative_to(KNOWLEDGE)}">\n{p.read_text().strip()}\n</doc>'
+        for p in docs
+        if _readable(doc_tables(p), user)
+    )
 
 
-def system_prompt(variant: str | None = None) -> str:
+def system_prompt(variant: str | None = None, user: User | None = None) -> str:
+    """user가 없으면 거르지 않은 전체 프롬프트다(테스트·비교용). generate()는 항상 user를 넘긴다."""
     okf = (variant or prompt_variant()) == "okf"
     prompt = INSTRUCTIONS.format(today=eval_today(), knowledge_rule=KNOWLEDGE_RULE if okf else "")
-    prompt += f"\n<schema>\n{SCHEMA.read_text().strip()}\n</schema>\n"
+    prompt += f"\n<schema>\n{_schema(user)}\n</schema>\n"
     if okf:
-        prompt += f"\n<knowledge>\n{_knowledge()}\n</knowledge>\n"
+        prompt += f"\n<knowledge>\n{_knowledge(user)}\n</knowledge>\n"
     return prompt
 
 

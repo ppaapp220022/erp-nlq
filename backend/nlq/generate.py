@@ -35,8 +35,8 @@ def generate(question: str, user: User, failed: Failed | None = None) -> Generat
         model=model,
         max_tokens=MAX_TOKENS,
         output_config={"effort": EFFORT},
-        # 지침·열 목록·OKF 묶음은 질문마다 같아서 캐시한다. 질문은 사용자 메시지라 캐시 뒤에 붙는다.
-        system=[{"type": "text", "text": system_prompt(), "cache_control": {"type": "ephemeral"}}],
+        # 지침·열 목록·OKF 묶음은 같은 역할이면 질문마다 같아서 캐시한다. 질문은 사용자 메시지라 캐시 뒤에 붙는다.
+        system=[{"type": "text", "text": system_prompt(user=user), "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": user_message(question, user, failed)}],
         output_format=_Answer,
     )

@@ -11,8 +11,9 @@ from types import SimpleNamespace
 import pytest
 
 from nlq import Failed, GenerationError, User, generate
-from nlq.prompt import KNOWLEDGE, SCHEMA, VARIANTS, system_prompt, user_message
+from nlq.prompt import KNOWLEDGE, SCHEMA, VARIANTS, doc_tables, system_prompt, user_message
 from nlq.settings import ROOT, eval_today
+from nlq.users import load_users
 
 generate_module = importlib.import_module("nlq.generate")
 
@@ -105,7 +106,7 @@ def test_generate_sends_failed_attempt_in_user_message(monkeypatch):
     calls = _fake_client(monkeypatch)
     generate("질문", USER, Failed(sql="SELECT bad", error="oops"))
     (call,) = calls
-    assert call["system"][0]["text"] == system_prompt()
+    assert call["system"][0]["text"] == system_prompt(user=USER)
     assert "SELECT bad" in call["messages"][0]["content"] and "oops" in call["messages"][0]["content"]
 
 
@@ -113,7 +114,50 @@ def test_generate_uses_configured_prompt_variant(monkeypatch):
     calls = _fake_client(monkeypatch)
     monkeypatch.setenv("NLQ_PROMPT", "schema")
     generate("질문", USER)
-    assert calls[0]["system"][0]["text"] == system_prompt("schema")
+    assert calls[0]["system"][0]["text"] == system_prompt("schema", USER)
+
+
+# --- 역할별 거르기 (M5). 정보 노출을 줄이는 장치이고, 권한은 execute()가 강제한다 ---
+
+PERSONAS = load_users()
+
+
+def _schema_tables(prompt):
+    block = prompt.split("\n<schema>\n")[1].split("\n</schema>")[0]
+    return set(re.findall(r"^(\w+)\(", block, re.M))
+
+
+@pytest.mark.parametrize("login", sorted(PERSONAS))
+def test_prompt_has_only_readable_tables_and_docs(login):
+    user = PERSONAS[login].user
+    prompt = system_prompt("okf", user)
+    assert _schema_tables(prompt) == set(user.tables)
+    for path in KNOWLEDGE.rglob("*.md"):
+        if path.name == "README.md":
+            continue
+        tag = f'<doc path="{path.relative_to(KNOWLEDGE)}">'
+        # 문서의 tables가 하나라도 역할 밖이면 뺀다 (docs/architecture.md "지식 층")
+        assert (tag in prompt) == (set(doc_tables(path)) <= user.tables), tag
+
+
+def test_stock_user_prompt_has_no_customer_invoices():
+    # 재고 담당은 고객 송장(account_move)을 읽을 수 없다. 열 목록과 account_move 문서가 빠진다.
+    # 거르기는 앞머리 tables 기준이라, 다른 문서 본문이 테이블 이름을 언급하는 것까지 지우지는 않는다.
+    prompt = system_prompt("okf", PERSONAS["stock.choi"].user)
+    assert "account_move(" not in prompt
+    assert '<doc path="tables/account_move.md">' not in prompt
+
+
+def test_user_without_tables_gets_no_schema():
+    assert _schema_tables(system_prompt("okf", USER)) == set()
+
+
+def test_generate_sends_role_filtered_prompt(monkeypatch):
+    calls = _fake_client(monkeypatch)
+    choi = PERSONAS["stock.choi"].user
+    generate("질문", choi)
+    assert calls[0]["system"][0]["text"] == system_prompt(user=choi)
+    assert "account_move(" not in calls[0]["system"][0]["text"]
 
 
 @pytest.mark.parametrize("stop_reason", ["refusal", "max_tokens"])
