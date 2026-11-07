@@ -1,0 +1,11 @@
+id: ex-account-004
+area: 회계
+role: admin
+question: 송장일부터 만기까지 30일이 넘는 고객 송장
+sql: |
+  SELECT c.name AS company, m.name, m.invoice_date, m.invoice_date_due
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  WHERE m.state = 'posted' AND m.move_type = 'out_invoice'
+    AND m.invoice_date_due - m.invoice_date > 30
+notes: date끼리 빼면 일수(정수)다

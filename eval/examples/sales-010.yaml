@@ -1,0 +1,10 @@
+id: ex-sales-010
+area: 판매
+role: sales.lee
+question: 11월에 들어온 확정 주문을 날짜별 건수로
+sql: |
+  SELECT date_order::date AS order_date, count(*) AS orders
+  FROM sale_order
+  WHERE state = 'sale' AND date_order >= '2026-11-01' AND date_order < '2026-12-01'
+  GROUP BY date_order::date
+notes: timestamp를 날짜로 묶는다

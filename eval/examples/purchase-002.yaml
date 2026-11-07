@@ -1,0 +1,11 @@
+id: ex-purchase-002
+area: 구매
+role: stock.choi
+question: 입고 예정일이 가장 늦은 견적 요청
+sql: |
+  SELECT o.name, o.date_planned::date AS date_planned
+  FROM purchase_order o
+  WHERE o.state IN ('draft', 'sent')
+  ORDER BY o.date_planned DESC
+  LIMIT 1
+notes: 견적 요청 = draft·sent. 예정일은 date_planned(timestamp)

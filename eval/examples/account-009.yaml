@@ -1,0 +1,11 @@
+id: ex-account-009
+area: 회계
+role: admin
+question: Ready Mat에서 받은 매입 송장과 환불 목록. 회사, 번호, 종류, 금액
+sql: |
+  SELECT c.name AS company, m.name, m.move_type, m.amount_total
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  JOIN res_partner p ON p.id = m.commercial_partner_id
+  WHERE p.name = 'Ready Mat' AND m.state = 'posted' AND m.move_type IN ('in_invoice', 'in_refund')
+notes: 문서 한 건의 금액은 부호 없는 amount_total

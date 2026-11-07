@@ -1,0 +1,9 @@
+id: ex-purchase-004
+area: 구매
+role: stock.choi
+question: 부가세가 붙은 발주. 번호, 부가세, 합계
+sql: |
+  SELECT name, amount_tax, amount_total
+  FROM purchase_order
+  WHERE amount_tax > 0
+notes: 부가세 = amount_tax, 합계 = amount_total

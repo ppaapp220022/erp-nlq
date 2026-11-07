@@ -1,0 +1,11 @@
+id: ex-purchase-005
+area: 구매
+role: admin
+question: 공급처 송장 번호(참조)가 적히지 않은 매입 송장. 회사, 번호, 공급처
+sql: |
+  SELECT c.name AS company, m.name, p.name AS vendor
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  JOIN res_partner p ON p.id = m.commercial_partner_id
+  WHERE m.state = 'posted' AND m.move_type = 'in_invoice' AND m.ref IS NULL
+notes: 공급처가 붙인 송장 번호는 ref. 매입 송장 = in_invoice

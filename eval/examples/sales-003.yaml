@@ -1,0 +1,12 @@
+id: ex-sales-003
+area: 판매
+role: sales.kim
+question: 서비스 품목이 들어간 확정 주문 목록
+sql: |
+  SELECT DISTINCT o.name
+  FROM sale_order_line l
+  JOIN sale_order o ON o.id = l.order_id
+  JOIN product_product pp ON pp.id = l.product_id
+  JOIN product_template t ON t.id = pp.product_tmpl_id
+  WHERE o.state = 'sale' AND t.type = 'service'
+notes: 품목 종류는 product_template.type(service, consu, combo)

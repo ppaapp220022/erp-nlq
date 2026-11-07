@@ -1,0 +1,10 @@
+id: ex-stock-010
+area: 재고
+role: stock.choi
+question: 재고 조정 위치에 쌓인 수량 합계
+sql: |
+  SELECT sum(q.quantity) AS quantity
+  FROM stock_quant q
+  JOIN stock_location l ON l.id = q.location_id
+  WHERE l.usage = 'inventory'
+notes: 재고 조정 위치(usage inventory)는 음수다. 현재 재고에 합치면 안 된다

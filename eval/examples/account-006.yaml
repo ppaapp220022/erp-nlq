@@ -1,0 +1,10 @@
+id: ex-account-006
+area: 회계
+role: admin
+question: 부가세가 붙은 고객 송장. 회사, 번호, 부가세
+sql: |
+  SELECT c.name AS company, m.name, m.amount_tax
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  WHERE m.state = 'posted' AND m.move_type = 'out_invoice' AND m.amount_tax > 0
+notes: 부가세 = amount_tax

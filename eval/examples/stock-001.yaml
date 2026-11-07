@@ -1,0 +1,14 @@
+id: ex-stock-001
+area: 재고
+role: stock.choi
+question: 출고를 위해 예약된 수량이 있는 품목과 예약 수량
+sql: |
+  SELECT t.name->>'en_US' AS product, sum(q.reserved_quantity) AS reserved
+  FROM stock_quant q
+  JOIN stock_location l ON l.id = q.location_id
+  JOIN product_product pp ON pp.id = q.product_id
+  JOIN product_template t ON t.id = pp.product_tmpl_id
+  WHERE l.usage = 'internal'
+  GROUP BY pp.id, t.name->>'en_US'
+  HAVING sum(q.reserved_quantity) > 0
+notes: 예약 수량 = reserved_quantity, internal 위치만

@@ -1,0 +1,13 @@
+id: ex-stock-002
+area: 재고
+role: stock.choi
+question: Shelf 2 위치에 있는 품목과 수량
+sql: |
+  SELECT t.name->>'en_US' AS product, sum(q.quantity) AS quantity
+  FROM stock_quant q
+  JOIN stock_location l ON l.id = q.location_id
+  JOIN product_product pp ON pp.id = q.product_id
+  JOIN product_template t ON t.id = pp.product_tmpl_id
+  WHERE l.complete_name LIKE 'WH/Stock/Shelf 2%'
+  GROUP BY pp.id, t.name->>'en_US'
+notes: 하위 위치까지 포함하려면 complete_name 앞부분으로 찾는다

@@ -1,0 +1,11 @@
+id: ex-purchase-010
+area: 구매
+role: stock.choi
+question: Azure Interior와의 발주를 상태별로 몇 건인지
+sql: |
+  SELECT o.state, count(*) AS orders
+  FROM purchase_order o
+  JOIN res_partner p ON p.id = o.partner_id
+  WHERE p.name = 'Azure Interior'
+  GROUP BY o.state
+notes: "상태: draft(RFQ), sent, purchase(확정), cancel"

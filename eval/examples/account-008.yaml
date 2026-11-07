@@ -1,0 +1,12 @@
+id: ex-account-008
+area: 회계
+role: admin
+question: My US Company의 거래처별 고객 송장 건수
+sql: |
+  SELECT p.name AS customer, count(*) AS invoices
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  JOIN res_partner p ON p.id = m.commercial_partner_id
+  WHERE c.name = 'My US Company' AND m.state = 'posted' AND m.move_type = 'out_invoice'
+  GROUP BY p.name
+notes: 거래처는 commercial_partner_id로 묶는다

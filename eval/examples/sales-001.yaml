@@ -1,0 +1,11 @@
+id: ex-sales-001
+area: 판매
+role: admin
+question: 유효기간이 앞으로 30일 안에 끝나는 견적. 주문 번호, 고객, 유효기간
+sql: |
+  SELECT o.name, p.name AS customer, o.validity_date
+  FROM sale_order o
+  JOIN res_partner p ON p.id = o.partner_id
+  WHERE o.state IN ('draft', 'sent')
+    AND o.validity_date BETWEEN DATE '2026-11-03' AND DATE '2026-12-03'
+notes: 견적 = draft·sent. 유효기간은 validity_date(date)

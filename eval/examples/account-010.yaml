@@ -1,0 +1,12 @@
+id: ex-account-010
+area: 회계
+role: sales.park
+question: 내 고객 중 송장이 두 건 이상인 고객과 송장 수
+sql: |
+  SELECT p.name AS customer, count(*) AS invoices
+  FROM account_move m
+  JOIN res_partner p ON p.id = m.commercial_partner_id
+  WHERE m.state = 'posted' AND m.move_type = 'out_invoice' AND m.invoice_user_id = 9
+  GROUP BY p.name
+  HAVING count(*) >= 2
+notes: 질문의 "내"는 질문한 사용자(res_users.id 9). 담당자는 invoice_user_id

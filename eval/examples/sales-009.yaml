@@ -1,0 +1,11 @@
+id: ex-sales-009
+area: 판매
+role: admin
+question: 이서연이 담당한 견적 목록
+sql: |
+  SELECT o.name, o.state, o.amount_untaxed
+  FROM sale_order o
+  JOIN res_users u ON u.id = o.user_id
+  JOIN res_partner rp ON rp.id = u.partner_id
+  WHERE rp.name = '이서연' AND o.state IN ('draft', 'sent')
+notes: 영업 사원 이름은 res_users.partner_id → res_partner.name

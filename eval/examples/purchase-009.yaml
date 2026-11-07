@@ -1,0 +1,10 @@
+id: ex-purchase-009
+area: 구매
+role: stock.choi
+question: 입고 문서는 있는데 아직 하나도 입고되지 않은 발주
+sql: |
+  SELECT o.name, p.name AS vendor
+  FROM purchase_order o
+  JOIN res_partner p ON p.id = o.partner_id
+  WHERE o.receipt_status = 'pending'
+notes: pending = 입고 문서가 있고 끝나지 않음. NULL은 문서가 없는 것(knowledge/pitfalls/status-null.md)

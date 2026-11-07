@@ -1,0 +1,11 @@
+id: ex-purchase-006
+area: 구매
+role: admin
+question: 회사별 매입 환불 금액(부가세 포함)
+sql: |
+  SELECT c.name AS company, sum(m.amount_total_signed) AS refund
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  WHERE m.state = 'posted' AND m.move_type = 'in_refund'
+  GROUP BY c.name
+notes: 매입 환불의 signed 금액은 양수다(knowledge/pitfalls/amount-sign.md)
