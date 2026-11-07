@@ -60,7 +60,7 @@
 - 프롬프트 버전: 프롬프트만 `c38f179fcbe3`, OKF 포함 `33aa13e3cb5a`. 모델은 claude-haiku-5-5, claude-opus-5-5. 변형마다 한 번씩만 돌렸다.
 - OKF 묶음은 Haiku에서 +5문항이고 Opus에서는 차이가 없다. 이번 50문항의 함정(매출 기준, internal 위치 등)은 Opus가 스키마만 보고도 대부분 피했다.
 - 네 번 모두 틀린 sales-002·stock-007은 날짜를 묻는 질문에 timestamp를 낸 경우다(채점 규칙상 오답).
-- guard 거부 2건은 권한 밖 SQL이 아니라 guard가 지원하지 않는 구문이다. 괄호로 묶은 조인 `LEFT JOIN (a JOIN b)`(Opus OKF stock-002)과 jsonb `?` 연산자(Opus 프롬프트만 stock-011)다. 안전한 쪽으로 실패한 것이라 우회는 아니다.
+- guard 거부 2건은 권한 밖 SQL이 아니라 guard가 지원하지 않는 구문이다. 괄호로 묶은 조인 `LEFT JOIN (a JOIN b)`(Opus OKF stock-002)과 jsonb `?` 연산자(Opus 프롬프트만 stock-011)다. 안전한 쪽으로 실패한 것이라 우회는 아니다. 두 구문은 이후 guard가 지원한다(`fix/guard-nested-join-jsonb`). 위 표는 고치기 전 측정이라 그대로 둔다.
 
 ## 기능별 완료 기준
 

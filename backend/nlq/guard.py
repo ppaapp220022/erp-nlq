@@ -27,6 +27,10 @@ STRUCTURE = (
     exp.ILike, exp.Add, exp.Sub, exp.Mul, exp.Div, exp.Mod, exp.Neg, exp.DPipe, exp.Case, exp.If,
     exp.Window, exp.WindowSpec, exp.Filter, exp.Interval, exp.Cast, exp.DataType, exp.DataTypeParam,
     exp.JSONPath, exp.JSONPathKey, exp.JSONPathRoot,
+    # jsonb 키 존재(?, ?|, ?&)와 포함(@>, <@). 이미 읽을 수 있는 열끼리 비교만 하고 다른 행·테이블을 열지 않는다.
+    # Odoo 19의 회사별 값(standard_price 등)이 {"회사 id": 값} jsonb라 `standard_price ? '1'` 꼴로 쓰인다.
+    exp.JSONBContainsTopKey, exp.JSONBContainsAnyTopKeys, exp.JSONBContainsAllTopKeys,
+    exp.ArrayContainsAll, exp.ArrayContainedBy,
 )
 
 # 함수. sqlglot이 이름을 아는 함수는 전용 노드로 파싱되고, 모르는 함수는 Anonymous가 된다.
@@ -52,7 +56,8 @@ TYPES = {
     T.DATE, T.TIMESTAMP, T.TIMESTAMPTZ, T.BOOLEAN, T.INTERVAL,
 }
 
-TABLE_ARGS = {"this", "db", "alias", "only"}
+# joins: 괄호로 묶은 조인 `(a JOIN b ON ...)`은 첫 테이블에 나머지 조인이 붙은 꼴로 파싱된다
+TABLE_ARGS = {"this", "db", "alias", "only", "joins"}
 ASCII_LOWER = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
 
 
@@ -157,13 +162,16 @@ def _check_table(table: exp.Table, user: User) -> None:
 
 
 def _scoped(table: exp.Table, user: User) -> exp.Subquery:
-    """`t AS a` → `(SELECT * FROM t WHERE <행 범위>) AS a`. 별칭이 없으면 테이블 이름을 별칭으로 쓴다."""
+    """`t AS a` → `(SELECT * FROM t WHERE <행 범위>) AS a`. 별칭이 없으면 테이블 이름을 별칭으로 쓴다.
+
+    괄호 조인의 첫 테이블이면 붙어 있던 조인을 바꾼 서브쿼리로 옮긴다. 조인 안 테이블은 각자 따로 바뀐다.
+    """
     name = _name(table.this)
     rule = TABLES[name]
     columns = ", ".join(rule.columns) if rule.columns else "*"
     inner = sqlglot.parse_one(f"SELECT {columns} FROM {name} WHERE {row_scope(name, user)}", read=DIALECT)
     alias = table.args.get("alias") or exp.TableAlias(this=exp.to_identifier(name))
-    return exp.Subquery(this=inner, alias=alias.copy())
+    return exp.Subquery(this=inner, alias=alias.copy(), joins=table.args.get("joins"))
 
 
 def _force_limit(tree: exp.Expression, limit: int) -> None:
