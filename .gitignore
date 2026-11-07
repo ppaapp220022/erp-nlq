@@ -11,3 +11,6 @@ eval/results/
 
 # 트러블슈팅 기록은 구글 드라이브에서 관리한다 (CLAUDE.md)
 docs/troubleshooting/
+
+# 임베딩 모델 파일 (fastembed, nlq/retrieve.py)
+.cache/

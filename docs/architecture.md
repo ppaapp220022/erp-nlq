@@ -125,7 +125,7 @@ Odoo가 권한을 합치는 방식(전역 규칙은 AND, 그룹 규칙은 OR)과
 | 층 | 무엇을 | 어떻게 넣나 |
 |---|---|---|
 | **OKF 묶음** (`knowledge/`) | 사람이 다듬은 작고 정확한 지식: 확정 테이블 설명, 데이터 함정, 업무 흐름, 매출·미수금 지표 정의 | 역할이 볼 수 있는 문서는 **항상** 넣는다 |
-| **RAG** (pgvector) | 너무 커서 다듬을 수 없는 것: 열 단위 스키마, 예시 질문-SQL(`eval/examples/`) | 질문마다 검색해서 넣는다 |
+| **RAG** (메모리 색인) | 다듬기보다 쌓는 것: 예시 질문-SQL(`eval/examples/`) | 질문마다 검색해서 사용자 메시지에 넣는다 |
 
 OKF 문서 규칙은 다음과 같다. OKF는 v0.1 초안이라 필수 필드 `type`만 규격을 따르고, 나머지는 이 프로젝트의 규칙이다.
 
@@ -146,6 +146,8 @@ tags: [회계]
 - M5에서 같은 50문항으로 "RAG만"과 "OKF + RAG"를 비교한다.
 
 M2의 `generate`는 검색 없이 지침, 열 목록([db/schema.txt](../db/schema.txt), `scripts/db-schema.sh`로 생성), OKF 묶음 전체를 시스템 프롬프트 하나로 넣고 캐시한다. `generate`는 DB에 접속하지 않으므로 열 목록은 파일로만 받는다. M5부터 열 목록과 OKF 묶음을 사용자가 읽을 수 있는 테이블(`eval/users.toml`의 `tables`)로 거른다(`nlq/prompt.py`). 문서는 앞머리 `tables`가 모두 읽을 수 있을 때만 넣는다. 그래서 여러 영역에 걸친 문서(예: `pitfalls/status-null.md`는 판매·구매, 흐름 문서는 송장 단계 포함)는 한쪽 테이블만 읽는 역할에서 통째로 빠진다. 같은 날 Haiku 측정에서 정확도는 떨어지지 않았다(46 → 47/50). 본문이 다른 테이블 이름을 언급하는 것까지 지우지는 않는다. 프롬프트는 역할마다 달라서 캐시도 역할마다 따로다.
+
+RAG 층은 예시 질문-SQL 검색이다(`nlq/retrieve.py`, `NLQ_RETRIEVE=none|keyword|embedding`). 예시 SQL이 쓰는 테이블을 모두 읽을 수 있는 예시만 후보로 두고, 그중 질문과 가까운 3개를 사용자 메시지에 넣는다. 시스템 프롬프트에 넣지 않으므로 캐시는 그대로다. 예시가 40개라 pgvector 대신 메모리 색인을 쓴다. 열 목록은 역할로 거른 전체를 계속 넣는다([ADR 0004](adr/0004-example-retrieval-in-memory.md)).
 
 ## 평가
 
@@ -168,7 +170,8 @@ M2의 `generate`는 검색 없이 지침, 열 목록([db/schema.txt](../db/schem
 backend/            Python, FastAPI
   nlq/
     generate.py     질문 → SQL
-    retrieve.py     OKF 묶음 + RAG 검색, 역할별 거르기 (2단계)
+    prompt.py       지침 + 열 목록 + OKF 묶음, 역할별 거르기
+    retrieve.py     예시 검색(키워드·임베딩), 역할별 거르기
     guard.py        sqlglot 검증·재작성
     execute.py      guard + 실행. DB로 가는 유일한 경로
     identity.py     사용자·역할 → 허용 테이블과 행 범위

@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from nlq.models import Failed, GeneratedSQL, GenerationError, User
 from nlq.prompt import system_prompt, user_message
+from nlq.retrieve import retrieve
 from nlq.settings import setting
 
 DEFAULT_MODEL = "claude-haiku-5-5"  # 개발용. 결과 표용 측정은 EVAL_MODEL=claude-opus-5-5
@@ -31,13 +32,15 @@ def generate(question: str, user: User, failed: Failed | None = None) -> Generat
     "이번 달" 같은 표현은 eval/config.yaml의 today 기준으로 풀게 한다.
     """
     model = setting("EVAL_MODEL", DEFAULT_MODEL)
+    examples = retrieve(question, user)  # NLQ_RETRIEVE가 none이면 빈 목록 (기본 keyword)
     response = _client().messages.parse(
         model=model,
         max_tokens=MAX_TOKENS,
         output_config={"effort": EFFORT},
         # 지침·열 목록·OKF 묶음은 같은 역할이면 질문마다 같아서 캐시한다. 질문은 사용자 메시지라 캐시 뒤에 붙는다.
         system=[{"type": "text", "text": system_prompt(user=user), "cache_control": {"type": "ephemeral"}}],
-        messages=[{"role": "user", "content": user_message(question, user, failed)}],
+        # 예시는 질문마다 달라 캐시 뒤인 사용자 메시지에 넣는다
+        messages=[{"role": "user", "content": user_message(question, user, failed, examples)}],
         output_format=_Answer,
     )
     if response.stop_reason != "end_turn" or response.parsed_output is None:

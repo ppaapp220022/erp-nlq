@@ -28,3 +28,4 @@
 | [0001](0001-odoo-as-data-source.md) | 데이터 소스로 Odoo Community 19 | 채택 |
 | [0002](0002-separate-sales-and-stock-roles.md) | 영업 사원과 재고 담당 역할 분리 | 채택 |
 | [0003](0003-guard-rules-from-odoo-groups.md) | guard의 행 범위: Odoo 그룹은 뽑아 오고 규칙은 코드로 | 채택 |
+| [0004](0004-example-retrieval-in-memory.md) | 예시 검색: 메모리 색인, 역할로 거른 뒤 고르기 | 채택 |
