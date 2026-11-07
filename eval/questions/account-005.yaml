@@ -1,0 +1,14 @@
+id: account-005
+area: 회계
+role: admin
+question: 이번 달 고객 환불 건수와 부가세 제외 환불 금액을 회사별로. 금액은 양수로
+gold_sql: |
+  SELECT c.name AS company, count(*) AS refunds, sum(m.amount_untaxed) AS amount_untaxed
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  WHERE m.state = 'posted'
+    AND m.move_type = 'out_refund'
+    AND m.invoice_date >= '2026-11-01' AND m.invoice_date < '2026-12-01'
+  GROUP BY c.name
+order_matters: false
+notes: 환불만 합치므로 부호 없는 amount_untaxed가 양수 금액이다. -SUM(amount_untaxed_signed)도 같다

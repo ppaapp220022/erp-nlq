@@ -1,0 +1,15 @@
+id: account-011
+area: 회계
+role: admin
+question: San Francisco 회사에서 고객 환불이 나간 거래처와 환불 건수
+gold_sql: |
+  SELECT p.name AS customer, count(*) AS refunds
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  JOIN res_partner p ON p.id = m.commercial_partner_id
+  WHERE c.name = 'My Company (San Francisco)'
+    AND m.state = 'posted'
+    AND m.move_type = 'out_refund'
+  GROUP BY p.id, p.name
+order_matters: false
+notes: 고객 환불 = out_refund. 원 송장(reversed_entry_id)이 비어 있어도 환불은 센다

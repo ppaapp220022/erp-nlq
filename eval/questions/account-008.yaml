@@ -1,0 +1,16 @@
+id: account-008
+area: 회계
+role: admin
+question: My US Company 미수금을 만기 전, 연체 30일 이내, 연체 30일 초과 금액으로 나눠서 한 줄로
+gold_sql: |
+  SELECT coalesce(sum(m.amount_residual_signed) FILTER (WHERE m.invoice_date_due >= '2026-11-03'), 0) AS not_due,
+         coalesce(sum(m.amount_residual_signed) FILTER (WHERE m.invoice_date_due < '2026-11-03'
+                                                         AND m.invoice_date_due >= '2026-10-04'), 0) AS overdue_30,
+         coalesce(sum(m.amount_residual_signed) FILTER (WHERE m.invoice_date_due < '2026-10-04'), 0) AS overdue_over_30
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  WHERE c.name = 'My US Company'
+    AND m.state = 'posted'
+    AND m.move_type IN ('out_invoice', 'out_refund')
+order_matters: false
+notes: 연체 = 만기 < today(2026-11-03). 30일 이내 = 만기가 10-04 ~ 11-02. 환불 잔액은 음수라 미수금에서 빠진다(knowledge/metrics/receivable.md). 빈 구간은 0

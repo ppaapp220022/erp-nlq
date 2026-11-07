@@ -1,0 +1,13 @@
+id: stock-007
+area: 재고
+role: stock.choi
+question: 예정일이 지났는데 아직 끝나지 않은 고객 출고. 출고 번호, 예정일, 상태
+gold_sql: |
+  SELECT p.name, p.scheduled_date::date AS scheduled_date, p.state
+  FROM stock_picking p
+  JOIN stock_location d ON d.id = p.location_dest_id
+  WHERE d.usage = 'customer'
+    AND p.state NOT IN ('done', 'cancel')
+    AND p.scheduled_date < '2026-11-03'
+order_matters: false
+notes: 지났다 = 예정일이 today(2026-11-03)보다 앞. 오늘 예정은 아직 지나지 않았다. draft도 끝나지 않은 것이다

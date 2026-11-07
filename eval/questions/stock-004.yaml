@@ -1,0 +1,15 @@
+id: stock-004
+area: 재고
+role: stock.choi
+question: 지금 바로 출고할 수 있는 수량이 남은 품목과 그 수량
+gold_sql: |
+  SELECT t.name->>'en_US' AS product, sum(q.quantity - q.reserved_quantity) AS available
+  FROM stock_quant q
+  JOIN stock_location l ON l.id = q.location_id
+  JOIN product_product pp ON pp.id = q.product_id
+  JOIN product_template t ON t.id = pp.product_tmpl_id
+  WHERE l.usage = 'internal'
+  GROUP BY pp.id, t.name->>'en_US'
+  HAVING sum(q.quantity - q.reserved_quantity) > 0
+order_matters: false
+notes: 출고 가능 수량 = quantity - reserved_quantity, internal 위치만(knowledge/pitfalls/stock-quant-locations.md). 전부 예약된 품목은 빠진다

@@ -1,0 +1,16 @@
+id: account-007
+area: 회계
+role: admin
+question: San Francisco 회사의 영업 사원별 매출. 담당자가 있는 송장만
+gold_sql: |
+  SELECT rp.name AS salesperson, sum(m.amount_untaxed_signed) AS revenue
+  FROM account_move m
+  JOIN res_company c ON c.id = m.company_id
+  JOIN res_users u ON u.id = m.invoice_user_id
+  JOIN res_partner rp ON rp.id = u.partner_id
+  WHERE c.name = 'My Company (San Francisco)'
+    AND m.state = 'posted'
+    AND m.move_type IN ('out_invoice', 'out_refund')
+  GROUP BY rp.name
+order_matters: false
+notes: 매출은 송장 - 환불, 부가세 제외(knowledge/metrics/revenue.md). 영업 사원은 invoice_user_id. 환불이 더 큰 사원은 음수다
