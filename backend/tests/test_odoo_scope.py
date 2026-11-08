@@ -39,10 +39,14 @@ def test_every_user_has_odoo_counts():
 
 
 @pytest.mark.parametrize(("login", "table"), CASES, ids=[f"{u}-{t}" for u, t in CASES])
-def test_row_count_matches_odoo(login, table):
+def test_row_count_matches_odoo(login, table, enforce):
+    # 행 범위를 거는 방식(guard, RLS, 둘 다, guard 없이 RLS만)마다 Odoo와 같아야 한다 (ADR 0005)
     sql = f"SELECT count(*) FROM {table}"
     expected = COUNTS[login].get(table)
-    if expected is None:
+    if expected is None and enforce == "rls_no_guard":
+        # guard가 없으면 테이블을 거부하는 대신 정책(nlq.can_read)이 행을 하나도 내주지 않는다
+        assert execute(sql, USERS[login]).rows[0][0] == 0
+    elif expected is None:
         with pytest.raises(GuardError):
             execute(sql, USERS[login])
     else:

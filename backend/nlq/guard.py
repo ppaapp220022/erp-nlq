@@ -61,13 +61,13 @@ TABLE_ARGS = {"this", "db", "alias", "only", "joins"}
 ASCII_LOWER = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
 
 
-def guard(sql: str, user: User, max_rows: int = 1_000) -> str:
+def guard(sql: str, user: User, max_rows: int = 1_000, scope_rows: bool = True) -> str:
     """검증하고 재작성한 SQL을 돌려준다. 하나라도 걸리면 GuardError.
 
     1. 문장 하나, SELECT(CTE·UNION 포함)
     2. 노드·함수·형 허용 목록
     3. 테이블: CTE가 아니면 사용자가 읽을 수 있는 허용 테이블
-    4. 테이블마다 행 범위가 걸린 서브쿼리로 바꾼다
+    4. 테이블마다 행 범위가 걸린 서브쿼리로 바꾼다. scope_rows=False면 건너뛴다(RLS 정책이 거는 경로, ADR 0005)
     5. 바깥 LIMIT은 max_rows + 1 이하 (execute가 넘친 것을 알아챈다)
     """
     try:
@@ -77,8 +77,9 @@ def guard(sql: str, user: User, max_rows: int = 1_000) -> str:
         tables = [t for t in tree.find_all(exp.Table) if not _is_cte_reference(t)]
         for table in tables:
             _check_table(table, user)
-        for table in tables:
-            table.replace(_scoped(table, user))
+        if scope_rows:
+            for table in tables:
+                table.replace(_scoped(table, user))
         _force_limit(tree, max_rows + 1)
         return tree.sql(dialect=DIALECT, comments=False)
     except RecursionError as e:

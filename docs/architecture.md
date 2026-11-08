@@ -107,14 +107,18 @@ Odoo가 권한을 합치는 방식(전역 규칙은 AND, 그룹 규칙은 OR)과
 | `statement_timeout` 10초, 행 수 1,000행 | 느린 쿼리, 큰 결과. `SET LOCAL`로 건다(`set_config`는 실행 권한이 없다). FETCH는 한 번만 해서, 설정을 바꿀 길이 생겨도 그 문장에는 적용되지 않는다 | `execute` (M2) |
 | 접속 역할 확인 | superuser·BYPASSRLS 역할로 접속하면 실행하지 않는다 | `execute` (M2) |
 | guard | 권한 밖 행, 위험 함수, 여러 문장 | `execute` (M3) |
+| RLS 정책 (`NLQ_ENFORCE=rls\|both`) | 권한 밖 행. guard 재작성이 빠지거나 뚫려도 막는다 | [db/rls_policies.sql](../db/rls_policies.sql) (M6) |
 
 ## RLS 방식 (2단계, M6 비교용)
 
-같은 규칙을 Postgres RLS 정책으로 구현해 구문 트리 방식과 비교한다.
+같은 규칙을 Postgres RLS 정책으로 구현해 구문 트리 방식과 비교한다. 결정과 측정은 [ADR 0005](adr/0005-rls-vs-guard.md)에 있다.
 
-- 사용자 값은 `SET LOCAL nlq.user_id = ...`로 넘긴다. 사용자 SQL이 `set_config`로 이 값을 바꾸지 못하게 guard의 함수 허용 목록이 함께 필요하다. `nlq_readonly`는 `current_setting`도 실행할 수 없으므로(위 "실행 안전장치"), 정책이 이 값을 읽을 때는 `nlq.user_id`만 돌려주는 SECURITY DEFINER 함수를 따로 둔다.
-- 정책은 `nlq_readonly`에만 적용한다. `FORCE ROW LEVEL SECURITY`는 쓰지 않는다. 소유자인 Odoo가 영향을 받기 때문이다.
-- `odoo`는 superuser라 RLS를 항상 건너뛴다. 측정은 반드시 `nlq_readonly`로 한다.
+- 규칙은 `identity.py` 하나다. [backend/nlq/rls.py](../backend/nlq/rls.py)가 이것을 정책 SQL [db/rls_policies.sql](../db/rls_policies.sql)로 만든다. Odoo의 합치기(전역 AND 해당 그룹 규칙 OR)와 ACL을 식 안에서 한다.
+- 경로는 역할로 나눈다. `nlq_readonly`는 guard 경로(정책 `USING (true)`), `nlq_rls`는 정책이 범위를 거는 경로다. `NLQ_ENFORCE=guard|rls|both`로 고르고 기본은 `guard`다. `rls`에서도 guard 검증(문장·노드·함수·테이블 허용 목록)은 그대로 하고 재작성만 끈다.
+- 사용자 값은 `execute()`가 `SET LOCAL nlq.uid|company_ids|groups|tables`로 넘긴다. 정책은 SECURITY DEFINER 함수(`nlq.uid()` 등, [db/rls_context.sql](../db/rls_context.sql))로만 읽는다. `nlq_rls`는 `set_config`·`current_setting`을 실행할 수 없어 값을 바꾸거나 다른 설정을 읽지 못한다. 값이 없으면 함수가 오류를 낸다(실패 시 닫힘).
+- 정책 조건은 security barrier라 leakproof가 아닌 사용자 조건보다 먼저 평가된다. guard 경로에서 플래너 순서에 기대는 오류 누출 방어가 RLS에서는 보장된다.
+- `FORCE ROW LEVEL SECURITY`는 쓰지 않는다. `odoo`는 superuser라 RLS를 항상 건너뛰고, Odoo 동작도 바뀌지 않는다. 측정은 반드시 `nlq_readonly`·`nlq_rls`로 한다.
+- 우회 테스트(`test_guard.py`의 DB 테스트)와 Odoo 행 수 비교(`test_odoo_scope.py`)는 guard, rls, both, guard 없이 RLS만, 네 방식으로 돈다(`tests/conftest.py`의 `enforce`).
 
 ## 데이터
 
@@ -184,6 +188,7 @@ backend/            Python, FastAPI
     guard.py        sqlglot 검증·재작성
     execute.py      guard + 실행. DB로 가는 유일한 경로
     identity.py     사용자·역할 → 허용 테이블과 행 범위
+    rls.py          identity.py의 규칙 → RLS 정책 SQL (M6)
   tests/            우회 테스트 포함
 knowledge/          OKF 묶음: tables/, metrics/, flows/, pitfalls/
 eval/

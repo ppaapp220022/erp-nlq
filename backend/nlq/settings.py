@@ -24,16 +24,36 @@ def setting(name: str, default: str | None = None) -> str | None:
     return os.environ.get(name) or _dotenv().get(name) or default
 
 
-def readonly_conninfo() -> dict[str, str]:
-    """질의 계층의 DB 접속 정보. 계정은 nlq_readonly뿐이다 (CLAUDE.md 절대 규칙 2)."""
+ENFORCEMENTS = ("guard", "rls", "both")
+
+
+def enforcement() -> str:
+    """행 범위를 거는 방식 (M6 비교, ADR 0005). NLQ_ENFORCE, 기본은 guard.
+
+    guard: guard가 SQL을 재작성해 건다. nlq_readonly로 접속한다.
+    rls:   guard는 검증만 하고 RLS 정책이 건다. nlq_rls로 접속한다.
+    both:  guard 재작성과 RLS 정책을 함께 건다. nlq_rls로 접속한다.
+    """
+    value = setting("NLQ_ENFORCE", "guard")
+    if value not in ENFORCEMENTS:
+        raise RuntimeError(f"NLQ_ENFORCE는 {'|'.join(ENFORCEMENTS)} 중 하나다: {value}")
+    return value
+
+
+def readonly_conninfo(rls: bool = False) -> dict[str, str]:
+    """질의 계층의 DB 접속 정보. 계정은 nlq_readonly, RLS 경로에서는 nlq_rls뿐이다 (CLAUDE.md 절대 규칙 2)."""
     password = setting("NLQ_RO_PASSWORD")
     if not password:
         raise RuntimeError(".env에 NLQ_RO_PASSWORD가 없다")
+    user = setting("NLQ_RO_USER", "nlq_readonly")
+    if rls:
+        user = setting("NLQ_RLS_USER", "nlq_rls")
+        password = setting("NLQ_RLS_PASSWORD", password)
     return {
         "host": setting("NLQ_DB_HOST", "127.0.0.1"),
         "port": setting("NLQ_DB_PORT", "5432"),
         "dbname": setting("ODOO_DB_NAME", "erp"),
-        "user": setting("NLQ_RO_USER", "nlq_readonly"),
+        "user": user,
         "password": password,
     }
 

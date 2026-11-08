@@ -35,9 +35,11 @@ db = pytest.mark.skipif(not _db_available(), reason="nlq_readonly로 접속할 D
 SLOW_SQL = "SELECT count(*) FROM generate_series(1, 10000000000)"
 
 
-@pytest.fixture
-def no_guard(monkeypatch):
-    monkeypatch.setattr(execute_module, "guard", lambda sql, user, max_rows: sql)
+@pytest.fixture(params=["guard", "rls"])
+def no_guard(request, monkeypatch):
+    # 두 역할(nlq_readonly, nlq_rls) 모두 같은 안전장치를 가져야 한다 (ADR 0005)
+    monkeypatch.setenv("NLQ_ENFORCE", request.param)
+    monkeypatch.setattr(execute_module, "guard", lambda sql, user, max_rows, scope_rows: sql)
 
 
 def test_unknown_user_reads_nothing():
@@ -163,7 +165,7 @@ def test_refuses_superuser(monkeypatch, no_guard):
             self.closed = True
 
     fake = FakeConn()
-    monkeypatch.setattr(execute_module, "readonly_conninfo", lambda: {})
+    monkeypatch.setattr(execute_module, "readonly_conninfo", lambda rls=False: {})
     monkeypatch.setattr(psycopg, "connect", lambda **_: fake)
     with pytest.raises(RuntimeError, match="superuser"):
         execute("SELECT 1", USER)

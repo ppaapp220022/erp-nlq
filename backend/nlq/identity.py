@@ -6,7 +6,7 @@ Odoo는 `전역 규칙 AND (사용자 그룹에 걸린 그룹 규칙 OR ...)`로
 backend/tests/test_odoo_scope.py가 Odoo ORM이 센 행 수와 비교한다.
 
 조건은 guard가 `(SELECT ... FROM <테이블> WHERE <조건>) AS <별칭>`으로 끼운다. 열은 테이블 이름을 붙여 쓴다.
-`{uid}`와 `{companies}`에는 정수만 들어간다.
+`{uid}`와 `{companies}`에는 정수만 들어간다. 같은 조건을 RLS 정책으로도 옮긴다(nlq/rls.py, M6 비교).
 """
 
 from __future__ import annotations
@@ -26,18 +26,20 @@ ERP_MANAGER = "base.group_erp_manager"
 
 ALL = "TRUE"  # 그룹 규칙 (1, '=', 1)
 
-# Odoo `company_id parent_of company_ids`: 사용자 회사 자신이거나 그 상위 회사
-PARENT_OF = (
-    "{col} IN (SELECT a.id FROM res_company a JOIN res_company c ON c.parent_path LIKE a.parent_path || '%'"
-    " WHERE c.id IN ({companies}))"
+# Odoo `company_id parent_of company_ids`: 사용자 회사 자신이거나 그 상위 회사. {parent_companies}는
+# 그 id 목록을 내는 쿼리다. guard는 res_company를 직접 읽고, RLS는 res_company 정책을 거치지 않는 함수로 읽는다.
+PARENT_COMPANIES = (
+    "SELECT a.id FROM res_company a JOIN res_company c ON c.parent_path LIKE a.parent_path || '%'"
+    " WHERE c.id IN ({companies})"
 )
+PARENT_OF = "{col} IN ({parent_companies})"
 PARTNER = (
     "(res_partner.partner_share = false OR "
-    + PARENT_OF.format(col="res_partner.company_id", companies="{companies}")
+    + PARENT_OF.format(col="res_partner.company_id", parent_companies="{parent_companies}")
     + " OR res_partner.company_id IS NULL)"
 )
 TEMPLATE = (
-    "(" + PARENT_OF.format(col="product_template.company_id", companies="{companies}")
+    "(" + PARENT_OF.format(col="product_template.company_id", parent_companies="{parent_companies}")
     + " OR product_template.company_id IS NULL)"
 )
 
@@ -120,4 +122,9 @@ def row_scope(table: str, user: User) -> str:
     if matched and ALL not in matched:
         parts.append("(" + " OR ".join(matched) + ")")
     companies = ", ".join(str(int(c)) for c in user.company_ids) or "NULL"
-    return " AND ".join(parts).format(table=table, uid=int(user.odoo_uid), companies=companies)
+    return " AND ".join(parts).format(
+        table=table,
+        uid=int(user.odoo_uid),
+        companies=companies,
+        parent_companies=PARENT_COMPANIES.format(companies=companies),
+    )
