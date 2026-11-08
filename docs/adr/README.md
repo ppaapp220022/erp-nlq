@@ -30,3 +30,4 @@
 | [0003](0003-guard-rules-from-odoo-groups.md) | guard의 행 범위: Odoo 그룹은 뽑아 오고 규칙은 코드로 | 채택 |
 | [0004](0004-example-retrieval-in-memory.md) | 예시 검색: 메모리 색인, 역할로 거른 뒤 고르기 | 채택 |
 | [0005](0005-rls-vs-guard.md) | 행 범위: guard 재작성과 RLS 정책을 같은 규칙으로 두고 비교 | 채택 |
+| [0007](0007-tool-choice.md) | 도구 선택: Odoo, sqlglot, 비교 대상 WrenAI | 채택 |
