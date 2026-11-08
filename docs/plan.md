@@ -1,6 +1,6 @@
 # 개발 계획 (1인)
 
-> **현재 위치:** M6 진행 중. RLS 구현과 비교 완료(ADR 0005). 남은 것: 감사 로그, CI 평가 20문항, WrenAI 비교, 도구 선택 ADR, README 초안.
+> **현재 위치:** M6 진행 중. RLS 구현과 비교(ADR 0005), 감사 로그(ADR 0006) 완료. 남은 것: CI 평가 20문항, WrenAI 비교, 도구 선택 ADR, README 초안.
 >
 > 작업이 끝날 때마다 이 줄과 아래 체크박스를 갱신한다.
 
@@ -174,7 +174,7 @@ claude-haiku-5-5, 2026-11-07, OKF 포함 + 키워드 검색, 자기 수정 1회,
 | 자기 수정 | SQL 실패 시 에러를 넣어 1회 재시도. `nlq/ask.py`, CLI·평가·화면. claude-haiku-5-5 같은 날 전후: OKF 포함 46 → 48/50(재시도 0건, 차이는 회차 변동), 프롬프트만 40 → 41/50(재시도 1건 stock-009 guard 거부 → 정답). 실행 실패가 드물어 효과가 작다 | M5 | [x] |
 | Odoo 보고서 대조 | 매출·미수금 보고서와 숫자 일치, 다르면 원인 설명. 사용자 5명 × 지표 5개 중 17항목, 정의 SQL 17/17, 시스템 답 claude-haiku-5-5 17/17(3회)·claude-opus-5-5 17/17. `nlq-report`, `scripts/odoo_report_totals.py` | M5 | [x] |
 | 권한 강제 (RLS) | 같은 규칙을 RLS로 구현해 비교, Record Rules 소스 근거 ADR. `identity.py`에서 정책 생성, 역할 `nlq_rls`, `NLQ_ENFORCE=guard\|rls\|both`. Odoo 행 수 84/84와 우회 테스트를 네 방식(guard 없이 RLS만 포함) 모두 통과, SQL 90개 × 6명 결과 같음. claude-haiku-5-5 같은 날 guard 47 / RLS 48(변동 범위). [ADR 0005](adr/0005-rls-vs-guard.md) | M6 | [x] |
-| 감사 로그 | 질문·SQL·사용자·시간 기록, 개인정보 제외 | M6 | [ ] |
+| 감사 로그 | 질문·SQL·사용자·시간 기록, 개인정보 제외. `execute()`가 시도마다 uid·시각·방식·결과 종류·가린 SQL·행 수를 `logs/audit.jsonl`에 남긴다. 질문 원문은 걸러 낼 수 없어 남기지 않고 가린 SQL로 대신한다. 쓰지 못하면 결과를 돌려주지 않는다. [ADR 0006](adr/0006-audit-log.md) | M6 | [x] |
 | CI | 권한 테스트와 평가 20문항(Haiku), API 키는 GitHub Secrets. PR 관문(`checks` + `ai-review`)은 M1에 먼저 만들었고, M6에서 평가 20문항을 `checks`에 붙인다 | M6 | [ ] |
 | 비교 기준 2 | WrenAI와 같은 50문항으로 비교 | M6 | [ ] |
 | 도구 선택 ADR | Odoo·WrenAI·sqlglot을 고른 이유, 버전 고정, 활성도 | M6 | [ ] |
@@ -197,3 +197,4 @@ claude-haiku-5-5, 2026-11-07, OKF 포함 + 키워드 검색, 자기 수정 1회,
 - 3단계 기능: 결과 마스킹, 오픈 모델(Ollama) 비교, MCP 서버 또는 Odoo 애드온, 의미 계층(매출·미수금 외 지표, 예: 재고 회전율), 문서 RAG와 라우팅, LoRA
   - 매출·미수금 정의는 되묻기와 보고서 대조에 필요해서 M1 OKF 묶음으로 당겨 왔다.
 - ORM API 방식 비교
+- 감사 기록을 추가만 가능한 저장소로 (지금은 로컬 파일, ADR 0006)
