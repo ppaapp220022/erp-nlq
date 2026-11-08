@@ -19,6 +19,7 @@ nlq = "nlq.cli:main"
 nlq-eval = "nlq.evaluate:main"
 nlq-api = "nlq.api:main"
 nlq-report = "nlq.report_check:main"
+nlq-eval-wren = "nlq.wren_compare:main"
 
 [dependency-groups]
 dev = ["httpx", "pytest"]
