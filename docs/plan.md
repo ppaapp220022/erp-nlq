@@ -1,6 +1,6 @@
 # 개발 계획 (1인)
 
-> **현재 위치:** M6 진행 중. RLS 구현과 비교(ADR 0005), 감사 로그(ADR 0006), CI 평가 20문항 완료. 남은 것: WrenAI 비교, 도구 선택 ADR, README 초안.
+> **현재 위치:** M6 진행 중. RLS 구현과 비교(ADR 0005), 감사 로그(ADR 0006), CI 평가 20문항, WrenAI 비교 완료. 남은 것: README 초안.
 >
 > 작업이 끝날 때마다 이 줄과 아래 체크박스를 갱신한다.
 
@@ -149,6 +149,25 @@ claude-haiku-5-5, 2026-11-07, OKF 포함 + 키워드 검색, 자기 수정 1회,
 - RLS는 오류 문구 누출 방어를 보장한다(정책 조건이 security barrier). guard는 플래너 순서에 기댄다.
 - 결과가 다른 것은 예시 `ex-sales-002`의 `LIMIT 3` 동점 1건뿐이고 범위 차이가 아니다.
 
+## M6 WrenAI 비교
+
+평가 50문항, 스냅숏 `erp-20261103.zip`, today 2026-11-03, 2026-11-08 측정, claude-haiku-5-5, 각 한 번. WrenAI는 질문 → SQL이 있는 마지막 오픈소스 릴리스 0.29.2(wren-ai-service 0.29.3, 이미지 digest 고정)다. WrenAI에 넣은 것(`knowledge/` 설명·지침, `eval/examples/` 예시 40개 중 31개)과 띄우는 법은 [reference/wrenai.md](reference/wrenai.md)에 있다. `nlq-eval-wren`으로 쟀다.
+
+| 영역 | 이 시스템 (OKF + 키워드 + 되묻기, `a51e064f84d6`) | WrenAI SQL → 우리 `execute()` | WrenAI 직접 실행 | WrenAI 우회 (범위 밖 행) |
+|---|---|---|---|---|
+| 판매 | 12/13 | 8/13 | 4/13 | 5 |
+| 구매 | 12/12 | 9/12 | 9/12 | 0 |
+| 재고 | 12/12 | 6/12 | 8/12 | 0 |
+| 회계 | 13/13 | 8/13 | 6/13 | 4 |
+| **전체** | **49/50** | **31/50** | **27/50** | **9** |
+
+- 정답은 모두 그 문항 `role` 사용자의 범위로 실행한 `gold_sql`이다. "우리 `execute()`"는 WrenAI SQL을 Postgres SQL로 바꿔 그 사용자에게 실행한 것이고, "직접 실행"은 WrenAI가 행 범위 없이 실행한 것이다.
+- **우회 9건**: 영업 사원이 물은 15문항 중 9문항에서, WrenAI가 직접 실행한 결과에 다른 영업 사원의 주문·송장이 섞였다(판매 5, 회계 4). 같은 SQL을 `execute()`로 실행하면 범위가 걸려, 그중 6문항은 정답이 된다. WrenAI 오픈소스에는 행 범위 기능이 없다(상용판 기능이다).
+- WrenAI 생성 실패 6건 중 5건은 엔진(DataFusion)이 jsonb `->>`를 지원하지 않아서 생겼고, 1건은 내부 오류다. 품목 이름 같은 번역 jsonb 열을 꺼내야 하는 문항에서 실패하거나, 열을 문자열로 캐스트해 `{"en_US": ...}`를 내 틀린다. 같은 이유로 예시 40개 중 9개도 넣지 못했다.
+- 재고에서 `execute()`가 직접 실행보다 낮은 것(6 vs 8)은 guard 거부 3건 때문이다. WrenAI가 `->>` 대신 낸 `jsonb_extract_path`·`JSON` 형을 guard 허용 목록이 막았다. 안전한 쪽으로 실패한 것이라 우회가 아니다.
+- 같은 날 이 시스템 49/50은 M5의 세 번 평균(48.0)과 같은 범위다. WrenAI도 한 번만 쟀으므로 ±1~2문항은 회차 변동으로 읽는다.
+- WrenAI는 질문 하나에 LLM을 여러 번, 큰 문맥으로 불러 API 분당 토큰 한도(50만)에 걸리기 쉽다. 러너는 한도 오류일 때만 60초 쉬고 다시 묻는다. 위 측정에서 WrenAI 안의 한도 오류는 0건이었다.
+
 ## 기능별 완료 기준
 
 ### 1단계
@@ -176,7 +195,7 @@ claude-haiku-5-5, 2026-11-07, OKF 포함 + 키워드 검색, 자기 수정 1회,
 | 권한 강제 (RLS) | 같은 규칙을 RLS로 구현해 비교, Record Rules 소스 근거 ADR. `identity.py`에서 정책 생성, 역할 `nlq_rls`, `NLQ_ENFORCE=guard\|rls\|both`. Odoo 행 수 84/84와 우회 테스트를 네 방식(guard 없이 RLS만 포함) 모두 통과, SQL 90개 × 6명 결과 같음. claude-haiku-5-5 같은 날 guard 47 / RLS 48(변동 범위). [ADR 0005](adr/0005-rls-vs-guard.md) | M6 | [x] |
 | 감사 로그 | 질문·SQL·사용자·시간 기록, 개인정보 제외. `execute()`가 시도마다 uid·시각·방식·결과 종류·가린 SQL·행 수를 `logs/audit.jsonl`에 남긴다. 질문 원문은 걸러 낼 수 없어 남기지 않고 가린 SQL로 대신한다. 쓰지 못하면 결과를 돌려주지 않는다. [ADR 0006](adr/0006-audit-log.md) | M6 | [x] |
 | CI | 권한 테스트와 평가 20문항(Haiku), API 키는 GitHub Secrets. PR 관문(`checks` + `ai-review`)은 M1에 먼저 만들었고, M6에서 평가 20문항을 `checks`에 붙인다. 허용 14테이블 축소 덤프(`eval/ci/erp-ci.sql.gz`, 45KB)를 CI Postgres에 복원해 DB 테스트를 모두 돌리고, 20문항(영역별 5)을 claude-haiku-5-5로 채점해 18 미만이면 실패. 로컬 덤프 DB에서 20/20 | M6 | [x] |
-| 비교 기준 2 | WrenAI와 같은 50문항으로 비교 | M6 | [ ] |
+| 비교 기준 2 | WrenAI와 같은 50문항으로 비교. WrenAI 0.29.2, claude-haiku-5-5, 한 번: 우리 `execute()`로 실행 31/50, 직접 실행 27/50, 우회 9건 vs 이 시스템 49/50. `nlq-eval-wren`, [reference/wrenai.md](reference/wrenai.md) | M6 | [x] |
 | 도구 선택 ADR | Odoo·WrenAI·sqlglot을 고른 이유, 버전 고정, 활성도. 활성도는 2026-11-08 확인, WrenAI 버전 고정은 비교 기준 2에서 채운다. [ADR 0007](adr/0007-tool-choice.md) | M6 | [x] |
 
 ## 미리 알고 있는 위험
