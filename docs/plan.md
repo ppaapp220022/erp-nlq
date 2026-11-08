@@ -177,7 +177,7 @@ claude-haiku-5-5, 2026-11-07, OKF 포함 + 키워드 검색, 자기 수정 1회,
 | 감사 로그 | 질문·SQL·사용자·시간 기록, 개인정보 제외. `execute()`가 시도마다 uid·시각·방식·결과 종류·가린 SQL·행 수를 `logs/audit.jsonl`에 남긴다. 질문 원문은 걸러 낼 수 없어 남기지 않고 가린 SQL로 대신한다. 쓰지 못하면 결과를 돌려주지 않는다. [ADR 0006](adr/0006-audit-log.md) | M6 | [x] |
 | CI | 권한 테스트와 평가 20문항(Haiku), API 키는 GitHub Secrets. PR 관문(`checks` + `ai-review`)은 M1에 먼저 만들었고, M6에서 평가 20문항을 `checks`에 붙인다 | M6 | [ ] |
 | 비교 기준 2 | WrenAI와 같은 50문항으로 비교 | M6 | [ ] |
-| 도구 선택 ADR | Odoo·WrenAI·sqlglot을 고른 이유, 버전 고정, 활성도 | M6 | [ ] |
+| 도구 선택 ADR | Odoo·WrenAI·sqlglot을 고른 이유, 버전 고정, 활성도. 활성도는 2026-11-08 확인, WrenAI 버전 고정은 비교 기준 2에서 채운다. [ADR 0007](adr/0007-tool-choice.md) | M6 | [x] |
 
 ## 미리 알고 있는 위험
 
