@@ -109,6 +109,14 @@ Odoo가 권한을 합치는 방식(전역 규칙은 AND, 그룹 규칙은 OR)과
 | guard | 권한 밖 행, 위험 함수, 여러 문장 | `execute` (M3) |
 | RLS 정책 (`NLQ_ENFORCE=rls\|both`) | 권한 밖 행. guard 재작성이 빠지거나 뚫려도 막는다 | [db/rls_policies.sql](../db/rls_policies.sql) (M6) |
 
+## 감사 기록 (M6)
+
+`execute()`가 DB에 닿는 시도마다 한 줄을 남긴다([backend/nlq/audit.py](../backend/nlq/audit.py), [ADR 0006](adr/0006-audit-log.md)). guard 거부와 실행 실패도 남긴다.
+
+- 남기는 것: 시각(UTC), Odoo uid, 행 범위 방식, 결과 종류(`ok|guard_rejected|timeout|error`), 문자열 값을 `'?'`로 바꾼 SQL, 행 수, 잘림 여부, 걸린 시간.
+- 남기지 않는 것: 질문 원문, SQL의 문자열 값, 결과 값, 오류 문구, login(절대 규칙 6). 가리지 못한 문자열이 남으면 SQL을 통째로 뺀다.
+- 파일은 `NLQ_AUDIT_LOG`, 기본 `logs/audit.jsonl`(git 제외). 쓰지 못하면 결과를 돌려주지 않는다.
+
 ## RLS 방식 (2단계, M6 비교용)
 
 같은 규칙을 Postgres RLS 정책으로 구현해 구문 트리 방식과 비교한다. 결정과 측정은 [ADR 0005](adr/0005-rls-vs-guard.md)에 있다.
@@ -189,6 +197,7 @@ backend/            Python, FastAPI
     execute.py      guard + 실행. DB로 가는 유일한 경로
     identity.py     사용자·역할 → 허용 테이블과 행 범위
     rls.py          identity.py의 규칙 → RLS 정책 SQL (M6)
+    audit.py        감사 기록, 개인정보 제외 (M6)
   tests/            우회 테스트 포함
 knowledge/          OKF 묶음: tables/, metrics/, flows/, pitfalls/
 eval/

@@ -50,3 +50,11 @@ def rls_no_guard(monkeypatch):
 def _rls_without_guard(monkeypatch):
     monkeypatch.setenv("NLQ_ENFORCE", "rls")
     monkeypatch.setattr(execute_module, "guard", lambda sql, user, max_rows, scope_rows: sql)
+
+
+@pytest.fixture(autouse=True)
+def audit_log(tmp_path, monkeypatch):
+    """테스트의 감사 기록은 임시 파일로 보낸다. 실제 logs/audit.jsonl을 더럽히지 않는다."""
+    path = tmp_path / "audit.jsonl"
+    monkeypatch.setenv("NLQ_AUDIT_LOG", str(path))
+    return path
