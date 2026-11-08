@@ -37,7 +37,7 @@ main에 머지하려면 필수 체크 두 개가 통과해야 한다.
 
 | 체크 | 내용 | 실패 조건 |
 |---|---|---|
-| `checks` | 셸·Python 문법, shellcheck, compose 설정, backend pytest (M3부터 우회 테스트, M6부터 평가 20문항) | 하나라도 실패 |
+| `checks` | 셸·Python 문법, shellcheck, compose 설정, 축소 DB 위의 backend pytest(우회 테스트·Odoo 일치 포함), 평가 20문항(claude-haiku-5-5), web 빌드 ([eval/ci/README.md](../eval/ci/README.md)) | 하나라도 실패, DB 테스트 건너뜀, 평가 정답이 기준(18/20) 미만 |
 | `ai-review` | Claude가 [.github/review/prompt.md](../.github/review/prompt.md) 기준으로 검토한다. 지침은 기준 브랜치 버전을 쓴다 | blocking 1건 이상, 또는 판정 파일 없음(실패 시 닫힘) |
 
 - `ai-review`는 Max 구독 토큰(시크릿 `CLAUDE_CODE_OAUTH_TOKEN`)으로 돈다. 만드는 법은 아래 "토큰 갱신".

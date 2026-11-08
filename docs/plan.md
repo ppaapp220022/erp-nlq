@@ -175,7 +175,7 @@ claude-haiku-5-5, 2026-11-07, OKF 포함 + 키워드 검색, 자기 수정 1회,
 | Odoo 보고서 대조 | 매출·미수금 보고서와 숫자 일치, 다르면 원인 설명. 사용자 5명 × 지표 5개 중 17항목, 정의 SQL 17/17, 시스템 답 claude-haiku-5-5 17/17(3회)·claude-opus-5-5 17/17. `nlq-report`, `scripts/odoo_report_totals.py` | M5 | [x] |
 | 권한 강제 (RLS) | 같은 규칙을 RLS로 구현해 비교, Record Rules 소스 근거 ADR. `identity.py`에서 정책 생성, 역할 `nlq_rls`, `NLQ_ENFORCE=guard\|rls\|both`. Odoo 행 수 84/84와 우회 테스트를 네 방식(guard 없이 RLS만 포함) 모두 통과, SQL 90개 × 6명 결과 같음. claude-haiku-5-5 같은 날 guard 47 / RLS 48(변동 범위). [ADR 0005](adr/0005-rls-vs-guard.md) | M6 | [x] |
 | 감사 로그 | 질문·SQL·사용자·시간 기록, 개인정보 제외 | M6 | [ ] |
-| CI | 권한 테스트와 평가 20문항(Haiku), API 키는 GitHub Secrets. PR 관문(`checks` + `ai-review`)은 M1에 먼저 만들었고, M6에서 평가 20문항을 `checks`에 붙인다 | M6 | [ ] |
+| CI | 권한 테스트와 평가 20문항(Haiku), API 키는 GitHub Secrets. PR 관문(`checks` + `ai-review`)은 M1에 먼저 만들었고, M6에서 평가 20문항을 `checks`에 붙인다. 허용 14테이블 축소 덤프(`eval/ci/erp-ci.sql.gz`, 45KB)를 CI Postgres에 복원해 DB 테스트를 모두 돌리고, 20문항(영역별 5)을 claude-haiku-5-5로 채점해 18 미만이면 실패. 로컬 덤프 DB에서 20/20 | M6 | [x] |
 | 비교 기준 2 | WrenAI와 같은 50문항으로 비교 | M6 | [ ] |
 | 도구 선택 ADR | Odoo·WrenAI·sqlglot을 고른 이유, 버전 고정, 활성도 | M6 | [ ] |
 
