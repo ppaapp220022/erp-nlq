@@ -2,8 +2,8 @@
 
 `checks`가 PR과 main 푸시마다 두 가지를 이 폴더로 돈다([.github/workflows/checks.yml](../../.github/workflows/checks.yml)).
 
-1. **축소 DB 위의 backend 테스트.** [erp-ci.sql.gz](erp-ci.sql.gz)를 빈 Postgres에 복원하고 `nlq_readonly`·`nlq_rls` 역할과 RLS 정책을 건 뒤(`scripts/db-ci-restore.sh`) `pytest`를 돈다. 권한 우회 테스트, Odoo 행 수 일치, 보고서 합계 대조, 평가 정답 SQL 실행이 모두 여기서 돈다. DB 테스트가 하나라도 건너뛰어지면 실패한다.
-2. **평가 20문항.** [questions.yaml](questions.yaml)의 문항을 claude-haiku-5-5로 돌린다(`nlq-eval --ci`). `min_correct`보다 적게 맞히면 실패한다. 결과 표는 작업 요약에 남는다. API 키는 레포 시크릿 `ANTHROPIC_API_KEY`이고, 시크릿이 없는 포크 PR에서는 실패한다.
+1. **축소 DB 위의 backend 테스트.** [erp-ci.sql.gz](erp-ci.sql.gz)를 빈 Postgres에 복원하고 `nlq_readonly`·`nlq_rls` 역할과 RLS 정책을 건 뒤(`scripts/db-ci-restore.sh`) `pytest`를 돈다. 권한 우회 테스트, Odoo 행 수 일치, 보고서 합계 대조, 평가 정답 SQL 실행이 모두 여기서 돈다. `NLQ_REQUIRE_DB=1`이라 두 역할로 접속되지 않으면 테스트를 시작하지 않는다(DB 테스트가 조용히 건너뛰어지지 않는다).
+2. **평가 20문항.** [questions.yaml](questions.yaml)의 문항을 claude-haiku-5-5로 돌린다(`nlq-eval --ci`). `min_correct`보다 적게 맞히면 실패한다. 결과 표는 작업 요약에 남는다. API 키는 레포 시크릿 `ANTHROPIC_API_KEY`(평가 전용 키, 콘솔 월 한도)이고, 시크릿이 없는 포크 PR에서는 실패한다. 같은 레포 브랜치의 PR은 워크플로를 바꿔 키를 읽을 수 있지만, 브랜치는 쓰기 권한자만 올릴 수 있어 감수한다.
 
 ## 축소 덤프
 
@@ -13,7 +13,7 @@
 - `res_users`는 질의 계층에 열린 열(id, partner_id, company_id, active, share)만 남긴다. 비밀번호·서명 등은 들어가지 않는다.
 - 포털 공유 토큰(`access_token`)은 비운다.
 - 나머지는 Odoo 데모 데이터(가상의 회사·인물)다. 공개 레포에 올리는 것을 2026-11-08에 정했다.
-- `test_ci_eval.py`가 테이블 목록, `res_users` 열, 토큰이 비었는지를 검사한다.
+- `test_ci_eval.py`가 테이블 목록, `res_users` 열, 토큰이 비었는지, 거래처 이메일이 데모 도메인(`example.com`, `yourcompany.com`, `fake.*`)이거나 비었는지를 검사한다. 이메일이 없는 한국어 이름 4명은 `scripts/seed_salespeople.py`가 만든 가상의 영업 사원이다.
 
 스냅숏을 바꾸거나 허용 테이블을 바꾸면 덤프를 다시 만든다. 다시 만들지 않으면 `test_ci_eval.py`나 CI의 DB 테스트가 실패한다.
 2026-11-08 기준 덤프는 `erp-20261103.zip`을 따로 복원한 DB에서 만든 것과 지금 로컬 DB에서 만든 것이 바이트까지 같았다.

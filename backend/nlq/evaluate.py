@@ -178,6 +178,8 @@ def main(argv: list[str] | None = None) -> int:
     model = setting("EVAL_MODEL", DEFAULT_MODEL)
     variant = prompt_variant()
     method = retrieve_method()
+    if args.ci and args.ids:
+        parser.error("--ci는 문항 목록(eval/ci/questions.yaml)을 쓰므로 문항 id를 함께 줄 수 없다")
     ci = yaml.safe_load(CI_QUESTIONS.read_text()) if args.ci else None
     questions = load_questions(ci["questions"] if ci else args.ids)
     print(

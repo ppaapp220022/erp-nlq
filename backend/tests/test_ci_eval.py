@@ -49,3 +49,23 @@ def test_dump_has_no_portal_tokens():
         assert rows and all(len(row) == len(columns) for row in rows), table
         index = columns.index("access_token")
         assert all(row[index] == r"\N" for row in rows), table
+
+
+# Odoo 데모 데이터가 쓰는 예약·가짜 도메인. 실제 주소가 섞이면 덤프를 다시 봐야 한다
+DEMO_EMAIL = re.compile(r"@([\w.-]+\.)?(example\.com|yourcompany\.com|fake\.[\w.-]+)$", re.I)
+# scripts/seed_salespeople.py가 만든 가상의 영업 사원. 이메일·전화가 없다
+SEED_NAMES = {"김민준", "이서연", "박지훈", "최윤서"}
+
+
+def test_dump_partners_are_demo_data():
+    # 덤프는 공개 레포에 올라간다. 거래처 연락처는 Odoo 데모의 가짜 주소이거나 비어 있어야 한다
+    lines = _dump().splitlines()
+    start = next(i for i, line in enumerate(lines) if line.startswith("COPY public.res_partner ("))
+    columns = re.match(r"COPY \S+ \((.*)\) FROM stdin;", lines[start]).group(1).split(", ")
+    rows = [dict(zip(columns, line.split("\t"))) for line in lines[start + 1 : lines.index("\\.", start)]]
+    assert rows
+    for row in rows:
+        email = row["email"]
+        assert email == r"\N" or DEMO_EMAIL.search(email), email
+        if email == r"\N" and row["name"] in SEED_NAMES:
+            assert row["phone"] == r"\N"
