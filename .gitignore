@@ -14,3 +14,6 @@ docs/troubleshooting/
 
 # 임베딩 모델 파일 (fastembed, nlq/retrieve.py)
 .cache/
+
+# 감사 기록 (nlq/audit.py). 개인정보는 없지만 실행 기록이라 레포에 올리지 않는다
+logs/
