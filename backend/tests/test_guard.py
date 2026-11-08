@@ -2,6 +2,7 @@
 
 앞부분은 DB 없이 돈다. guard가 막아야 하는 SQL을 막는지 본다.
 뒷부분은 로컬 DB(nlq_readonly)가 있어야 돈다. 막지 않는 SQL이 권한 밖 행을 돌려주지 않는지 본다.
+DB 테스트 대부분은 행 범위를 거는 방식(guard, RLS, 둘 다, guard 없이 RLS만)마다 돈다(conftest.py `enforce`, ADR 0005).
 Odoo가 보여 주는 행 수와의 비교는 test_odoo_scope.py에 있다.
 """
 
@@ -152,6 +153,7 @@ KIM_ORDERS = "(user_id = 7 OR user_id IS NULL)"  # Odoo sale_order_personal_rule
 
 
 @db
+@pytest.mark.usefixtures("enforce")
 def test_salesman_sees_own_and_unassigned_orders():
     assert scalar("SELECT count(*) FROM sale_order", KIM) == 8
     assert scalar("SELECT count(*) FROM sale_order WHERE 1 = 1 OR user_id = 8", KIM) == 8
@@ -191,6 +193,7 @@ def test_salesman_sees_own_and_unassigned_orders():
         "SELECT count(*) FROM (sale_order o JOIN stock_location l ON l.company_id = o.company_id) AS j WHERE user_id = 8",  # 묶음 별칭
     ],
 )
+@pytest.mark.usefixtures("enforce")
 def test_salesman_cannot_reach_other_orders(sql):
     assert scalar(sql, KIM) == 0
 
@@ -227,6 +230,7 @@ def _out_of_scope_names(sql):
         ),
     ],
 )
+@pytest.mark.usefixtures("enforce")
 def test_error_message_does_not_leak_out_of_scope_values(sql, out_of_scope):
     names = _out_of_scope_names(out_of_scope)
     assert names
@@ -245,12 +249,14 @@ def test_error_message_does_not_leak_out_of_scope_values(sql, out_of_scope):
         f"SELECT 1 FROM account_move WHERE 1 / (invoice_user_id - {LEE}) = 0",
     ],
 )
+@pytest.mark.usefixtures("enforce")
 def test_error_is_not_an_oracle_for_out_of_scope_rows(sql):
     # 권한 밖 행에서만 오류가 나는 식. 오류가 나면 그런 행이 있다는 사실이 샌다
     execute(sql, KIM)
 
 
 @db
+@pytest.mark.usefixtures("enforce")
 def test_salesman_sees_only_own_customer_invoices():
     assert scalar("SELECT count(*) FROM account_move", KIM) == 13
     assert scalar("SELECT count(*) FROM account_move WHERE move_type NOT IN ('out_invoice', 'out_refund')", KIM) == 0
@@ -258,12 +264,14 @@ def test_salesman_sees_only_own_customer_invoices():
 
 
 @db
+@pytest.mark.usefixtures("enforce")
 def test_stock_user_sees_all_orders_in_company():
     # 재고 담당에게는 sale_order 그룹 규칙이 없어 회사 규칙만 걸린다 (ADR 0002)
     assert scalar("SELECT count(*) FROM sale_order", CHOI) == 24
 
 
 @db
+@pytest.mark.usefixtures("enforce")
 def test_nested_join_matches_flat_join():
     # stock-002 (claude-opus-5-5, OKF)에서 거부됐던 꼴. 괄호 조인과 같은 뜻의 서브쿼리 조인이 같은 행을 낸다
     nested = """
@@ -279,6 +287,7 @@ def test_nested_join_matches_flat_join():
 
 
 @db
+@pytest.mark.usefixtures("enforce")
 def test_jsonb_key_exists_runs():
     # stock-011 (claude-opus-5-5, 프롬프트만)에서 거부됐던 꼴. ->> IS NOT NULL과 같은 품목 수가 나온다
     exists = "SELECT count(*) FROM product_product pp WHERE pp.standard_price ? ('1'::text)"

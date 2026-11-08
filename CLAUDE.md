@@ -10,13 +10,13 @@ ERP(Odoo) 데이터를 한국어로 물으면 SQL로 바꿔 답한다. LLM이 �
 
 ```bash
 docker compose up -d                 # Odoo 19 + Postgres 16(pgvector), 둘 다 127.0.0.1에만 공개
-./scripts/db-readonly-role.sh        # 질의용 역할 nlq_readonly 생성·권한 재적용 (멱등)
+./scripts/db-readonly-role.sh        # 질의용 역할 nlq_readonly·nlq_rls 생성, 권한과 RLS 정책 재적용 (멱등)
 ./scripts/db-seed.sh                 # 영업 사원 추가와 담당자 배정, Odoo와 SQL 수 비교 출력 (멱등)
 ./scripts/db-snapshot.sh save|restore <파일>   # snapshots/ 에 DB + filestore 저장·복원
 ./scripts/db-schema.sh               # nlq_readonly가 읽는 열 목록을 db/schema.txt로 (generate 프롬프트용)
 uv run --directory backend pytest  # 백엔드 테스트 (Python 3.12, uv 필요)
 uv run --directory backend nlq "질문" --user sales.kim   # 터미널에서 질문 → SQL → 결과. --sql, --users 참고
-uv run --directory backend nlq-eval [--model ...] [--prompt okf|schema] [--retrieve none|keyword|embedding] [--clarify on|off] [--clarify-set] [id ...]   # 평가 문항 채점, 영역별 정확도 (eval/README.md)
+uv run --directory backend nlq-eval [--model ...] [--prompt okf|schema] [--retrieve none|keyword|embedding] [--clarify on|off] [--enforce guard|rls|both] [--clarify-set] [id ...]   # 평가 문항 채점, 영역별 정확도 (eval/README.md)
 uv run --directory backend nlq-report [--no-ask]   # 시스템 답과 지표 정의를 Odoo 보고서(eval/odoo_reports.toml)와 대조
 uv run --directory backend nlq-api    # 화면용 API, 127.0.0.1:8000
 npm --prefix web run dev             # 화면(Next.js), 127.0.0.1:3000. /api/* 를 nlq-api로 넘긴다
@@ -29,7 +29,7 @@ Odoo 소스는 컨테이너 안 `/usr/lib/python3/dist-packages/odoo`에 있다.
 ## 절대 규칙
 
 1. **권한은 `execute()`가 강제한다.** LLM이 만든 SQL과 `generate()`의 출력은 신뢰하지 않는다. DB에 닿는 경로는 `execute()` 하나뿐이다.
-2. **질의 계층은 `nlq_readonly`로만 접속한다.** `odoo` 계정은 superuser라 RLS를 건너뛴다. 평가·테스트에서도 쓰지 않는다.
+2. **질의 계층은 `nlq_readonly`(guard 경로)와 `nlq_rls`(RLS 경로, ADR 0005)로만 접속한다.** `odoo` 계정은 superuser라 RLS를 건너뛴다. 평가·테스트에서도 쓰지 않는다.
 3. **Odoo 코드는 수정하지 않는다.** Odoo(LGPL)와 WrenAI(일부 AGPL) 코드를 이 레포에 복사하지 않는다. DB에는 `db/`의 역할·정책 SQL만 적용한다.
 4. **평가용 질문(`eval/questions/`)은 프롬프트 예시나 학습 데이터로 쓰지 않는다.** 예시는 `eval/examples/`에서만 가져온다.
 5. **권한 계층을 바꾸면 우회 테스트를 하나 이상 추가한다.** 찾은 우회 경로는 고치기 전에 실패하는 테스트로 먼저 남긴다.

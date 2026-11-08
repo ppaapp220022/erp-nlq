@@ -8,6 +8,7 @@
     uv run --directory backend nlq-eval --retrieve embedding  # 검색 방식 (기본 keyword, M5 검색 비교)
     uv run --directory backend nlq-eval --clarify off         # 되묻기 없이 (전후 비교용)
     uv run --directory backend nlq-eval --clarify-set         # 되묻기 세트(eval/clarify/): 되묻는지, 기준을 고른 뒤 맞히는지
+    uv run --directory backend nlq-eval --enforce rls         # 행 범위를 RLS 정책으로 (기본 guard, M6 비교)
 
 문항마다 ask()로 SQL을 만들어 실행하고(실패하면 오류를 넣어 다시 만든다), 정답 SQL도 같은 사용자로
 execute()해 결과를 비교한다. 평가 문항은 기준이 정해진 질문이라, 되물으면 clarification으로 세고 틀린 것으로 본다. DB와 API로 가는 길은 generate()와 execute()뿐이다. 결과는 eval/results/에 JSON으로 남긴다(git 제외).
@@ -37,7 +38,7 @@ from nlq.models import GuardError
 from nlq.prompt import CLARIFY_SETTINGS, DEFAULT_VARIANT, VARIANTS, clarify_enabled, prompt_variant, system_prompt
 from nlq.retrieve import DEFAULT_METHOD, METHODS, load_examples, retrieve, retrieve_method
 from nlq.scoring import matches
-from nlq.settings import ROOT, eval_today, setting
+from nlq.settings import ENFORCEMENTS, ROOT, enforcement, eval_today, setting
 from nlq.users import load_users
 
 QUESTIONS = ROOT / "eval" / "questions"
@@ -154,6 +155,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--retrieve", choices=METHODS, help=f"예시 검색 방식 (기본: NLQ_RETRIEVE, 없으면 {DEFAULT_METHOD})")
     parser.add_argument("--clarify", choices=CLARIFY_SETTINGS, help="되묻기 (기본: NLQ_CLARIFY, 없으면 on)")
     parser.add_argument("--clarify-set", action="store_true", help="평가 문항 대신 되묻기 세트(eval/clarify/)를 돌린다")
+    parser.add_argument("--enforce", choices=ENFORCEMENTS, help="행 범위를 거는 방식 (기본: NLQ_ENFORCE, 없으면 guard)")
     parser.add_argument("--retries", type=int, default=RETRIES, help=f"실행 실패 시 다시 만드는 횟수 (기본 {RETRIES})")
     parser.add_argument("--jobs", type=int, default=4, help="동시에 돌릴 문항 수")
     args = parser.parse_args(argv)
@@ -166,6 +168,8 @@ def main(argv: list[str] | None = None) -> int:
         os.environ["NLQ_RETRIEVE"] = args.retrieve
     if args.clarify:
         os.environ["NLQ_CLARIFY"] = args.clarify
+    if args.enforce:
+        os.environ["NLQ_ENFORCE"] = args.enforce
     if args.clarify_set:
         return clarify_main(args)
     model = setting("EVAL_MODEL", DEFAULT_MODEL)
@@ -174,7 +178,7 @@ def main(argv: list[str] | None = None) -> int:
     questions = load_questions(args.ids)
     print(
         f"모델 {model}, 프롬프트 {variant} {prompt_version()}, 검색 {method}, 되묻기 {_clarify_label()}, "
-        f"재시도 {args.retries}, 문항 {len(questions)}개",
+        f"재시도 {args.retries}, 범위 {enforcement()}, 문항 {len(questions)}개",
         file=sys.stderr,
     )
     # 임베딩 모델은 스레드를 띄우기 전에 한 번 적재한다
@@ -197,13 +201,14 @@ def main(argv: list[str] | None = None) -> int:
         "examples_version": examples_version(),
         "clarify": _clarify_label(),
         "retries": args.retries,
+        "enforce": enforcement(),
         "today": eval_today(),
         "finished_at": datetime.now().isoformat(timespec="seconds"),
         "summary": summary,
         "results": [asdict(r) for r in results],
     }
     RESULTS.mkdir(exist_ok=True)
-    path = RESULTS / f"{datetime.now():%Y%m%d-%H%M%S}-{model}-{variant}-{method}-r{args.retries}{'' if clarify_enabled() else '-noclarify'}.json"
+    path = RESULTS / f"{datetime.now():%Y%m%d-%H%M%S}-{model}-{variant}-{method}-r{args.retries}{'' if clarify_enabled() else '-noclarify'}{'' if enforcement() == 'guard' else '-' + enforcement()}.json"
     path.write_text(json.dumps(record, ensure_ascii=False, indent=2))
     print(format_summary(summary))
     print(f"\n결과: {path.relative_to(ROOT)}", file=sys.stderr)

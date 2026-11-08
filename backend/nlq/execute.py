@@ -5,7 +5,7 @@ from psycopg import sql as pgsql
 
 from nlq.guard import guard
 from nlq.models import ExecutionError, Rows, User
-from nlq.settings import readonly_conninfo
+from nlq.settings import enforcement, readonly_conninfo
 
 STATEMENT_TIMEOUT_MS = 10_000
 MAX_ROWS = 1_000
@@ -19,10 +19,17 @@ def execute(sql: str, user: User) -> Rows:
       1. guard: 단일 SELECT, 테이블·함수 허용 목록, 행 범위(담당자 AND 회사) 재작성, LIMIT (M3)
       2. nlq_readonly 연결, 읽기 전용 트랜잭션, statement_timeout, 행 수 제한 (M2)
     guard가 거부하면 GuardError(ExecutionError)를 내고 DB에 접속하지 않는다.
+
+    NLQ_ENFORCE=rls|both면 nlq_rls로 접속해 사용자 문맥을 SET LOCAL로 넣고 RLS 정책이 행 범위를 건다.
+    rls는 guard 재작성을 끄고 검증만 한다(ADR 0005).
     """
-    sql = guard(sql, user, max_rows=MAX_ROWS)
-    with _connect() as conn:
+    mode = enforcement()
+    sql = guard(sql, user, max_rows=MAX_ROWS, scope_rows=mode != "rls")
+    rls = mode != "guard"
+    with _connect(rls) as conn:
         try:
+            if rls:
+                _set_context(conn, user)
             return _run(conn, sql)
         finally:
             # SET LOCAL로 건 설정을 버린다. 사용자 SQL은 set_config 실행 권한이 없지만(db/readonly_role.sql),
@@ -30,8 +37,8 @@ def execute(sql: str, user: User) -> Rows:
             conn.rollback()
 
 
-def _connect() -> psycopg.Connection:
-    conn = psycopg.connect(**readonly_conninfo(), connect_timeout=CONNECT_TIMEOUT_S, application_name="nlq")
+def _connect(rls: bool = False) -> psycopg.Connection:
+    conn = psycopg.connect(**readonly_conninfo(rls), connect_timeout=CONNECT_TIMEOUT_S, application_name="nlq")
     conn.read_only = True  # BEGIN READ ONLY. 역할의 default_transaction_read_only와 별개로 한 번 더 건다
     superuser, bypass_rls = conn.execute(
         "SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user"
@@ -40,6 +47,21 @@ def _connect() -> psycopg.Connection:
         conn.close()
         raise RuntimeError("질의 계층은 superuser나 BYPASSRLS 역할로 접속하지 않는다 (절대 규칙 2)")
     return conn
+
+
+def _set_context(conn: psycopg.Connection, user: User) -> None:
+    """RLS 정책이 읽는 사용자 문맥 (db/rls_context.sql). 트랜잭션이 끝나면 사라진다.
+
+    사용자 SQL은 이 값을 바꾸지 못한다. 서버 커서는 SELECT 하나만 받고, set_config는 실행 권한이 없다.
+    """
+    context = {
+        "nlq.uid": str(int(user.odoo_uid)),
+        "nlq.company_ids": ",".join(str(int(c)) for c in user.company_ids),
+        "nlq.groups": ",".join(sorted(user.groups)),
+        "nlq.tables": ",".join(sorted(user.tables)),
+    }
+    for name, value in context.items():
+        conn.execute(pgsql.SQL("SET LOCAL {} = {}").format(pgsql.Identifier(*name.split(".")), pgsql.Literal(value)))
 
 
 def _run(conn: psycopg.Connection, sql: str) -> Rows:

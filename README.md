@@ -20,7 +20,7 @@ docker compose exec -T odoo odoo server --db_host db -r odoo -w "$ODOO_DB_PASSWO
   --with-demo --stop-after-init --http-port 8070
 ```
 
-2. 읽기 전용 역할을 만든다. 테이블 목록을 고친 뒤에도 다시 실행한다.
+2. 읽기 전용 역할(`nlq_readonly`, RLS 비교용 `nlq_rls`)과 RLS 정책을 만든다. 테이블 목록이나 `backend/nlq/identity.py`의 규칙을 고친 뒤에도 다시 실행한다.
 
 ```bash
 ./scripts/db-readonly-role.sh
