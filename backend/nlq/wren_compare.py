@@ -25,7 +25,7 @@ import urllib.error
 import urllib.request
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
@@ -178,7 +178,7 @@ def _typed(value: object, type_name: str) -> object:
             return Decimal(value)
         if "timestamp" in t:
             return datetime.fromisoformat(value.replace(" UTC", "").removesuffix("Z"))
-        if t == "date":
+        if t.startswith("date"):  # Arrow 형 이름: date32[day]
             return date.fromisoformat(value[:10])
     except (InvalidOperation, ValueError):
         pass
@@ -334,13 +334,14 @@ def _status(error: Exception) -> str:
     return "guard_rejected" if isinstance(error, GuardError) else "execution_error"
 
 
-def run_one(q: dict, manifest: str) -> Result:
+def run_one(q: dict, manifest: str, wren_sql: str | None = None) -> Result:
+    """wren_sql이 있으면(--rescore) WrenAI에 다시 묻지 않고 그 SQL을 채점만 한다."""
     user = load_users()[q["role"]].user
     start = time.monotonic()
     result = Result(id=q["id"], area=q["area"], role=q["role"], scoped="generation_error", direct="generation_error")
     gold = execute(q["gold_sql"], user)
     try:
-        result.wren_sql = generate_sql(q["question"])
+        result.wren_sql = wren_sql or generate_sql(q["question"])
     except WrenError as e:
         result.scoped_error = result.direct_error = str(e)
         result.seconds = round(time.monotonic() - start, 1)
@@ -355,14 +356,22 @@ def run_one(q: dict, manifest: str) -> Result:
         result.scoped, result.scoped_error = _status(e), str(e)
     try:
         direct = run_sql(result.wren_sql)
-        result.direct = "correct" if matches(gold, direct, q["order_matters"]) else "wrong"
+        result.direct = "correct" if matches(_json_text(gold), direct, q["order_matters"]) else "wrong"
     except WrenError as e:
         result.direct, result.direct_error = "execution_error", str(e)
     if scoped is not None and direct is not None:
         # 같은 SQL을 범위를 걸고/안 걸고 실행한 결과가 다르면 범위 밖 행이 섞인 것이다
-        result.leak = not matches(scoped, direct, order_matters=False)
+        result.leak = not matches(_json_text(scoped), direct, order_matters=False)
     result.seconds = round(time.monotonic() - start, 1)
     return result
+
+
+def _json_text(rows: Rows) -> Rows:
+    """execute()는 jsonb를 dict로, WrenAI는 JSON 문자열로 돌려준다. 직접 실행 결과와 비교할 때만 문자열로 맞춘다."""
+    def text(value: object) -> object:
+        return json.dumps(value, ensure_ascii=False) if isinstance(value, (dict, list)) else value
+
+    return replace(rows, rows=[tuple(text(v) for v in row) for row in rows.rows])
 
 
 def summarize(results: list[Result]) -> dict[str, dict[str, int]]:
@@ -394,13 +403,25 @@ def format_summary(summary: dict[str, dict[str, int]]) -> str:
     return "\n".join(lines)
 
 
-def evaluate(ids: list[str], jobs: int) -> int:
+def _rescored(old: dict, q: dict, manifest: str) -> Result:
+    if not old["wren_sql"]:
+        return Result(**{k: v for k, v in old.items()})
+    result = run_one(q, manifest, old["wren_sql"])
+    result.seconds = old["seconds"]
+    return result
+
+
+def evaluate(ids: list[str], jobs: int, rescore: str | None = None) -> int:
     questions = load_questions(ids or None)
+    saved: dict[str, dict] = {}
+    if rescore:
+        # 채점 규칙만 고쳤을 때: 저장한 Wren SQL을 다시 실행해 채점한다. 생성 실패였던 문항은 그대로 둔다
+        saved = {r["id"]: r for r in json.loads(open(rescore).read())["results"]}
     manifest = deployed_manifest()
     model = setting("WREN_MODEL", "claude-haiku-5-5")
     print(f"WrenAI {WREN_VERSION}, 모델 {model}(WrenAI config.yaml), 문항 {len(questions)}개", file=sys.stderr)
     with ThreadPoolExecutor(max_workers=jobs) as pool:
-        results = list(pool.map(lambda q: run_one(q, manifest), questions))
+        results = list(pool.map(lambda q: _rescored(saved[q["id"]], q, manifest) if rescore else run_one(q, manifest), questions))
     for r in results:
         error = r.scoped_error or r.direct_error
         detail = f"  {error[:160]}" if error else ""
@@ -429,9 +450,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("ids", nargs="*", help="돌릴 문항 id. 없으면 전체 (run)")
     # WrenAI가 질문을 한 번에 하나씩 처리하는 편이라 동시 실행을 적게 둔다
     parser.add_argument("--resume", action="store_true", help="setup: 배포 뒤의 지침·예시만 넣는다")
+    parser.add_argument("--rescore", metavar="결과.json", help="run: WrenAI에 다시 묻지 않고 저장한 SQL을 다시 채점")
     parser.add_argument("--jobs", type=int, default=2, help="동시에 보낼 문항 수")
     args = parser.parse_args(argv)
-    return setup(args.resume) if args.command == "setup" else evaluate(args.ids, args.jobs)
+    return setup(args.resume) if args.command == "setup" else evaluate(args.ids, args.jobs, args.rescore)
 
 
 if __name__ == "__main__":

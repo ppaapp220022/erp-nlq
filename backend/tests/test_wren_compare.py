@@ -71,3 +71,12 @@ def test_typed_restores_column_types():
     assert _typed("2026-10-01 10:00:00.000000", "TIMESTAMP") == datetime(2026, 10, 1, 10)
     assert _typed("S00001", "VARCHAR") == "S00001"
     assert _typed(3, "INT64") == 3
+
+
+def test_json_text_matches_wren_string():
+    from nlq.models import Rows
+    from nlq.wren_compare import _json_text
+
+    rows = _json_text(Rows(columns=["name"], rows=[({"en_US": "Large Desk"},)], executed_sql=""))
+    assert rows.rows == [('{"en_US": "Large Desk"}',)]
+    assert _typed("2026-09-24", "date32[day]") == date(2026, 9, 24)

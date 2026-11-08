@@ -75,7 +75,9 @@ docker compose exec -T db psql -U odoo -d "$ODOO_DB_NAME" -q \
 | 직접 실행 | wren-ui `/api/v1/run_sql` | 없음 (`nlq_wren` = `nlq_readonly`가 읽는 전부) |
 
 - **우회**: 같은 SQL의 직접 실행 결과가 execute() 결과와 다른 문항. 범위 밖 행(다른 영업 사원의 주문, 역할 밖 테이블)이 결과에 섞였다는 뜻이다. 둘 중 하나가 실행되지 않으면 세지 않는다.
-- 결과는 `eval/results/*-wrenai-*.json`(git 제외).
+- 직접 실행 결과와 비교할 때만 jsonb 값을 JSON 문자열로 맞춘다. `execute()`는 jsonb를 dict로, WrenAI는 문자열로 돌려줘서, 같은 행인데 우회로 잘못 세는 일이 있었다(구매 2건).
+- WrenAI는 질문 하나에 LLM을 여러 번 불러 API 분당 토큰 한도에 걸리기 쉽다. 한도 오류(`rate_limit`)일 때만 60초 쉬고 최대 5번 다시 묻는다. 다른 오류는 생성 실패로 센다.
+- 결과는 `eval/results/*-wrenai-*.json`(git 제외). 채점 규칙만 고쳤을 때는 `run --rescore <결과.json>`으로 저장한 SQL을 다시 채점한다(WrenAI에 다시 묻지 않는다).
 
 ## 셋업에서 막힌 것
 
