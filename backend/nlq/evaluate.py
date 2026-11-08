@@ -9,6 +9,7 @@
     uv run --directory backend nlq-eval --clarify off         # 되묻기 없이 (전후 비교용)
     uv run --directory backend nlq-eval --clarify-set         # 되묻기 세트(eval/clarify/): 되묻는지, 기준을 고른 뒤 맞히는지
     uv run --directory backend nlq-eval --enforce rls         # 행 범위를 RLS 정책으로 (기본 guard, M6 비교)
+    uv run --directory backend nlq-eval --ci                  # CI 20문항(eval/ci/questions.yaml). 기준보다 적게 맞히면 종료 코드 1
 
 문항마다 ask()로 SQL을 만들어 실행하고(실패하면 오류를 넣어 다시 만든다), 정답 SQL도 같은 사용자로
 execute()해 결과를 비교한다. 평가 문항은 기준이 정해진 질문이라, 되물으면 clarification으로 세고 틀린 것으로 본다. DB와 API로 가는 길은 generate()와 execute()뿐이다. 결과는 eval/results/에 JSON으로 남긴다(git 제외).
@@ -43,6 +44,7 @@ from nlq.users import load_users
 
 QUESTIONS = ROOT / "eval" / "questions"
 CLARIFY = ROOT / "eval" / "clarify"
+CI_QUESTIONS = ROOT / "eval" / "ci" / "questions.yaml"
 RESULTS = ROOT / "eval" / "results"
 AREAS = ["판매", "구매", "재고", "회계"]
 
@@ -154,6 +156,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--prompt", choices=VARIANTS, help=f"프롬프트 변형 (기본: NLQ_PROMPT, 없으면 {DEFAULT_VARIANT})")
     parser.add_argument("--retrieve", choices=METHODS, help=f"예시 검색 방식 (기본: NLQ_RETRIEVE, 없으면 {DEFAULT_METHOD})")
     parser.add_argument("--clarify", choices=CLARIFY_SETTINGS, help="되묻기 (기본: NLQ_CLARIFY, 없으면 on)")
+    parser.add_argument("--ci", action="store_true", help="CI 20문항(eval/ci/questions.yaml)만 돌리고 min_correct 미만이면 실패")
     parser.add_argument("--clarify-set", action="store_true", help="평가 문항 대신 되묻기 세트(eval/clarify/)를 돌린다")
     parser.add_argument("--enforce", choices=ENFORCEMENTS, help="행 범위를 거는 방식 (기본: NLQ_ENFORCE, 없으면 guard)")
     parser.add_argument("--retries", type=int, default=RETRIES, help=f"실행 실패 시 다시 만드는 횟수 (기본 {RETRIES})")
@@ -175,7 +178,10 @@ def main(argv: list[str] | None = None) -> int:
     model = setting("EVAL_MODEL", DEFAULT_MODEL)
     variant = prompt_variant()
     method = retrieve_method()
-    questions = load_questions(args.ids)
+    if args.ci and args.ids:
+        parser.error("--ci는 문항 목록(eval/ci/questions.yaml)을 쓰므로 문항 id를 함께 줄 수 없다")
+    ci = yaml.safe_load(CI_QUESTIONS.read_text()) if args.ci else None
+    questions = load_questions(ci["questions"] if ci else args.ids)
     print(
         f"모델 {model}, 프롬프트 {variant} {prompt_version()}, 검색 {method}, 되묻기 {_clarify_label()}, "
         f"재시도 {args.retries}, 범위 {enforcement()}, 문항 {len(questions)}개",
@@ -212,6 +218,12 @@ def main(argv: list[str] | None = None) -> int:
     path.write_text(json.dumps(record, ensure_ascii=False, indent=2))
     print(format_summary(summary))
     print(f"\n결과: {path.relative_to(ROOT)}", file=sys.stderr)
+    if ci:
+        correct = sum(r.status == "correct" for r in results)
+        verdict = "통과" if correct >= ci["min_correct"] else "실패"
+        print(f"\nCI 평가 {verdict}: {correct}/{len(results)} 정답 (기준 {ci['min_correct']}, 모델 {model})")
+        if correct < ci["min_correct"]:
+            return 1
     return 0
 
 

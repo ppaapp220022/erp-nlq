@@ -1,0 +1,25 @@
+# CI 평가 20문항 (M6). checks가 PR마다 claude-haiku-5-5로 돌린다: nlq-eval --ci
+# 영역별 5문항. 2026-11-07~08 OKF + 키워드 검색 8회 측정에서 8번 모두 맞힌 문항 중, 행 범위가 걸리는
+# 영업 사원·재고 담당 문항을 우선 골랐다. 고른 기준은 eval/ci/README.md.
+min_correct: 18   # 생성은 회차마다 흔들린다(±1~2). 이보다 적게 맞히면 checks가 실패한다
+questions:
+  - sales-001     # sales.kim
+  - sales-003     # demo
+  - sales-005     # admin
+  - sales-009     # sales.park
+  - sales-011     # sales.lee
+  - purchase-001  # stock.choi
+  - purchase-002  # stock.choi
+  - purchase-003  # admin
+  - purchase-004  # stock.choi
+  - purchase-008  # stock.choi
+  - stock-001     # stock.choi
+  - stock-002     # stock.choi
+  - stock-003     # sales.park
+  - stock-004     # stock.choi
+  - stock-006     # sales.kim
+  - account-001   # admin
+  - account-003   # sales.kim
+  - account-006   # sales.lee
+  - account-009   # sales.kim
+  - account-013   # sales.park

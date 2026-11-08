@@ -1,5 +1,6 @@
-# 결정적 검사. 브랜치 보호의 필수 체크 `checks`다.
-# 지금은 스크립트·설정 문법만 본다. M3부터 권한 우회 테스트, M6부터 평가 20문항을 여기에 붙인다.
+# 브랜치 보호의 필수 체크 `checks`다.
+# 스크립트·설정 문법, 축소 DB(eval/ci/erp-ci.sql.gz) 위의 backend 테스트(권한 우회·Odoo 일치 포함),
+# 평가 20문항(claude-haiku-5-5, eval/ci/questions.yaml), web 빌드를 본다.
 name: checks
 
 on:
@@ -17,6 +18,23 @@ permissions:
 jobs:
   checks:
     runs-on: ubuntu-latest
+    services:
+      db:
+        # 로컬 docker-compose.yml과 같은 이미지(digest 고정)
+        image: pgvector/pgvector:pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      # 축소 DB 복원과 역할 생성용 superuser. 질의 계층은 nlq_readonly·nlq_rls로만 접속한다(절대 규칙 2)
+      PGHOST: 127.0.0.1
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      ODOO_DB_NAME: erp
+      NLQ_RO_PASSWORD: ci-only
     steps:
       - uses: actions/checkout@v6
 
@@ -34,9 +52,27 @@ jobs:
 
       - uses: astral-sh/setup-uv@v6
 
+      - name: 축소 DB 복원, 역할·RLS 정책 적용
+        run: ./scripts/db-ci-restore.sh
+
       - name: backend 테스트
-        # M3부터 권한 우회 테스트가 여기서 돈다.
-        run: uv run --directory backend --locked pytest -q
+        # NLQ_REQUIRE_DB=1: 두 역할로 접속되지 않으면 테스트를 시작하지 않는다(tests/conftest.py).
+        # DB 테스트가 조용히 건너뛰어져 통과하는 일을 막는다
+        env:
+          NLQ_REQUIRE_DB: "1"
+        run: uv run --directory backend --locked pytest -q -rs
+
+      - name: 평가 20문항 (claude-haiku-5-5)
+        # 포크 PR에는 시크릿이 없어 실패한다(실패 시 닫힘). 결과 표는 작업 요약에 남긴다.
+        # 같은 레포 브랜치의 PR은 워크플로를 바꿔 이 키를 읽을 수 있다. 쓰기 권한자만 브랜치를 올릴 수 있고,
+        # 키는 평가 전용(콘솔 월 한도)이라 감수한다(eval/ci/README.md)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          EVAL_MODEL: claude-haiku-5-5
+        shell: bash  # -eo pipefail
+        run: |
+          test -n "$ANTHROPIC_API_KEY" || { echo "ANTHROPIC_API_KEY 시크릿이 없다"; exit 1; }
+          uv run --directory backend --locked nlq-eval --ci | tee -a "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/setup-node@v5
         with:
