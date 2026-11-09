@@ -21,4 +21,4 @@ Odoo Community 19.0(LGPL-3.0)을 공식 Docker 이미지로 띄우고 데모 데
 - 띄우는 데 공식 이미지 두 개면 된다.
 - 감수하는 것: 공식 이미지 `odoo:19.0` 태그는 매일 새 빌드로 바뀐다. 재현성을 위해 digest를 고정한다(M1).
 - 감수하는 것: Odoo 19 Enterprise에는 내장 AI 질의 기능이 있다. 이 프로젝트는 Community 위에서 권한 안전성을 측정하는 쪽으로 차별화한다.
-- ORM API 대신 SQL을 택한 이유는 별도 ADR로 남긴다.
+- ORM API 대신 SQL을 택한 이유는 [ADR 0008](0008-sql-over-orm-api.md)에 있다.

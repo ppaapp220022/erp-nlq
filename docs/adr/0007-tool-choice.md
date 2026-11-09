@@ -67,7 +67,7 @@ CLAUDE.md 절대 규칙 3은 Odoo(LGPL)와 WrenAI(일부 AGPL) 코드를 이 레
 
 - 버전을 고정했으므로 상위 버전의 버그 수정(Odoo 19.0 브랜치, sqlglot 30.30.0 이후)을 자동으로 받지 않는다. 올릴 때마다 스냅숏·우회 테스트·평가를 다시 돌려야 한다.
 - sqlglot은 Postgres 실제 파서가 아니다. Postgres는 받아들이지만 sqlglot이 잘못 읽는 구문이 있을 수 있다. guard는 모르는 구문을 거부하고, RLS 경로([0005](0005-rls-vs-guard.md))가 같은 규칙을 DB에서 한 번 더 건다.
-- WrenAI 비교 결과는 그때 띄운 버전에 묶인다. 비교 기준 2(2026-11-08)는 **앱 릴리스 줄 0.29.2**를 이미지 digest로 고정해 썼다(wren-ui 0.32.3, wren-ai-service 0.29.3, wren-engine·ibis 0.22.0, digest는 [reference/wrenai.md](../reference/wrenai.md)). `wren-v0.x` 줄은 질문 → SQL 서비스가 없는 에이전트용 CLI라 비교 대상이 되지 않는다. 0.29.2는 AGPL 시절 코드이므로 레포 밖에서 컨테이너로만 띄웠다.
+- WrenAI 비교 결과는 그때 띄운 버전에 묶인다. 비교 기준 2(2026-11-08 한 번, 11-09 두 번)는 **앱 릴리스 줄 0.29.2**를 이미지 digest로 고정해 썼다(wren-ui 0.32.3, wren-ai-service 0.29.3, wren-engine·ibis 0.22.0, digest는 [reference/wrenai.md](../reference/wrenai.md)). `wren-v0.x` 줄은 질문 → SQL 서비스가 없는 에이전트용 CLI라 비교 대상이 되지 않는다. 0.29.2는 AGPL 시절 코드이므로 레포 밖에서 컨테이너로만 띄웠다.
 
 ### 근거
 

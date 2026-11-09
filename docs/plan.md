@@ -1,6 +1,6 @@
 # 개발 계획 (1인)
 
-> **현재 위치:** M6 2차 마감. RLS 구현과 비교(ADR 0005), 감사 로그(ADR 0006), CI 평가 20문항, WrenAI 비교, 도구 선택 ADR(0007), README 초안 완료. 마무리: Opus 측정(최종 구성 한 번, 47/50), WrenAI 비교 세 번 측정(33.0 vs 49.0), 데모 영상([demo/erp-nlq-demo.mp4](demo/erp-nlq-demo.mp4)) 완료. 다음: ADR·트러블슈팅 정리.
+> **현재 위치:** M6 2차 마감. RLS 구현과 비교(ADR 0005), 감사 로그(ADR 0006), CI 평가 20문항, WrenAI 비교, 도구 선택 ADR(0007), README 초안 완료. 마무리: Opus 측정(최종 구성 한 번, 47/50), WrenAI 비교 세 번 측정(33.0 vs 49.0), 데모 영상([demo/erp-nlq-demo.mp4](demo/erp-nlq-demo.mp4)), 트러블슈팅 정리(드라이브 9건), ADR 정리(0008 추가) 완료. 다음: README 최종화.
 >
 > 작업이 끝날 때마다 이 줄과 아래 체크박스를 갱신한다.
 
@@ -227,7 +227,7 @@ claude-haiku-5-5, 2026-11-07, OKF 포함 + 키워드 검색, 자기 수정 1회,
 | RLS가 Odoo 동작을 깨뜨림 | `nlq_readonly`에만 정책 적용, `FORCE` 금지 |
 | 채점 오판 (행 순서, 열 이름, 반올림) | 비교할 때 무시 |
 | 평가를 반복할수록 API 비용이 쌓임 | 개발 중에는 Haiku, 결과 표용 측정만 Opus. 평가 전용 키에 월 한도 |
-| "Odoo ORM API를 쓰면 권한이 자동 적용되지 않나"라는 반론 | SQL을 택한 이유를 ADR로 남김 |
+| "Odoo ORM API를 쓰면 권한이 자동 적용되지 않나"라는 반론 | SQL을 택한 이유를 ADR로 남김([ADR 0008](adr/0008-sql-over-orm-api.md)) |
 | 하루 이상 막힘 | 범위를 줄이거나 우회로를 택하고 드라이브 troubleshooting 폴더에 기록 |
 
 ## 2차 목록
