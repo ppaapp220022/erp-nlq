@@ -32,3 +32,4 @@
 | [0005](0005-rls-vs-guard.md) | 행 범위: guard 재작성과 RLS 정책을 같은 규칙으로 두고 비교 | 채택 |
 | [0006](0006-audit-log.md) | 감사 기록: execute()에서 남기고, 질문 원문과 값은 남기지 않는다 | 채택 |
 | [0007](0007-tool-choice.md) | 도구 선택: Odoo, sqlglot, 비교 대상 WrenAI | 채택 |
+| [0008](0008-sql-over-orm-api.md) | 질의 경로: Odoo ORM API 대신 SQL을 만들고 execute()가 권한을 건다 | 채택 |
