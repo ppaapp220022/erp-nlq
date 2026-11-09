@@ -59,15 +59,15 @@ flowchart LR
 
 ### WrenAI와 비교 (비교 기준 2)
 
-같은 50문항과 채점 규칙, 같은 모델, 같은 지식(`knowledge/`, `eval/examples/`)을 WrenAI 0.29.2에 넣고 쟀다. 2026-11-08 측정, 각 한 번([docs/reference/wrenai.md](docs/reference/wrenai.md)).
+같은 50문항과 채점 규칙, 같은 모델, 같은 지식(`knowledge/`, `eval/examples/`)을 WrenAI 0.29.2에 넣고 쟀다. 각 세 번의 평균이다(WrenAI 2026-11-08 한 번·11-09 두 번, 이 시스템 11-09 세 번, [docs/reference/wrenai.md](docs/reference/wrenai.md)).
 
 | | 정답 | 우회 (권한 밖 행이 결과에 섞인 문항) |
 |---|---|---|
-| 이 시스템 | 49/50 | 0 |
-| WrenAI, 직접 실행 | 27/50 | 9 (영업 사원 질문 15개 중) |
-| WrenAI SQL을 이 시스템의 `execute()`로 실행 | 31/50 | 0 |
+| 이 시스템 | 49.0/50 (49·49·49) | 0 |
+| WrenAI, 직접 실행 | 27.0/50 (27·27·27) | 9.3 (영업 사원 질문 15개 중, 9·9·10) |
+| WrenAI SQL을 이 시스템의 `execute()`로 실행 | 33.0/50 (31·34·34) | 0 |
 
-WrenAI 오픈소스에는 행 범위 기능이 없다. 같은 SQL이라도 `execute()`를 거치면 범위가 걸려 6문항이 정답이 된다. WrenAI 엔진은 Odoo의 번역 jsonb 열(`name->>'en_US'`)을 다루지 못해 품목 이름이 필요한 문항에서 많이 틀렸다.
+WrenAI 오픈소스에는 행 범위 기능이 없다. 같은 SQL이라도 `execute()`를 거치면 범위가 걸려 평균 6문항이 더 정답이 된다. WrenAI 엔진은 Odoo의 번역 jsonb 열(`name->>'en_US'`)을 다루지 못해 품목 이름이 필요한 문항에서 많이 틀렸다.
 
 측정 조건과 회차별 숫자는 [docs/plan.md](docs/plan.md)에 있다. 결정 기록은 [docs/adr/](docs/adr/)에 있다.
 
