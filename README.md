@@ -4,7 +4,7 @@ ERP 데이터를 한국어로 물으면 SQL로 바꿔 답하되, 사용자 권�
 
 데이터 소스는 Odoo Community 19.0 (LGPL-3.0)이며, Odoo 코드는 수정하지 않는다. DB에는 읽기 전용 역할을 추가하고, PUBLIC에 열린 스키마 생성·임시 테이블 권한만 회수한다.
 
-> 상태: 초안 (M6 2차 마감). 숫자는 [docs/plan.md](docs/plan.md)의 측정 기록에서 옮겼다.
+> 상태: 계획한 1·2단계 기능을 모두 마쳤다(2026-11-09). 숫자는 [docs/plan.md](docs/plan.md)의 측정 기록에서 옮겼다. 하지 않기로 한 기능은 plan.md "2차 목록"에 있다.
 
 **데모 영상 (1분 13초):** [docs/demo/erp-nlq-demo.mp4](docs/demo/erp-nlq-demo.mp4). 관리자와 영업 사원에게 같은 질문을 했을 때 결과 범위, 직접 고친 SQL에도 걸리는 권한, 위험한 SQL과 권한 밖 테이블 거부, 되묻기, 평가 결과 순서로 보여 준다. 화면 아래 자막만 있고 소리는 없다.
 
@@ -31,6 +31,7 @@ flowchart LR
 - **RLS**: 같은 규칙을 Postgres RLS 정책으로도 구현해 비교했다(`NLQ_ENFORCE=guard|rls|both`, [ADR 0005](docs/adr/0005-rls-vs-guard.md)).
 - **DB 역할**: 질의 계층은 superuser가 아닌 `nlq_readonly`·`nlq_rls`로만 접속한다. 쓰기, 위험 함수, 허용 밖 테이블은 DB 권한에서도 막는다.
 - **감사 기록**: `execute()`가 시도마다 사용자·시각·결과 종류·값을 가린 SQL을 남긴다. 질문 원문과 값은 남기지 않는다([ADR 0006](docs/adr/0006-audit-log.md)).
+- **왜 Odoo ORM API가 아니라 SQL인가**: ORM은 권한을 스스로 걸지만 `read_group`으로는 조인·구간 합계를 한 번에 하지 못하고, 이 프로젝트는 자연어 → SQL 도구가 만든 임의의 SQL에서도 권한이 지켜지는지를 잰다([ADR 0008](docs/adr/0008-sql-over-orm-api.md)).
 
 구조와 신뢰 경계는 [docs/architecture.md](docs/architecture.md)에 있다.
 
@@ -53,7 +54,8 @@ flowchart LR
 | 스키마만 (프롬프트만) | 41.0 (3회 평균) |
 | 스키마 + 예시 검색 (RAG만, 키워드) | 41.7 (3회 평균) |
 | 스키마 + 도메인 지식 묶음(OKF) | 45.7 (3회 평균) |
-| **OKF + 예시 검색(키워드)** | **48.0 (3회 평균)** |
+| OKF + 예시 검색(키워드) | 48.0 (3회 평균) |
+| **OKF + 예시 검색 + 되묻기 (최종 구성)** | **48.3 (11-07 3회), 49.0 (11-09 3회)** |
 
 - 도메인 지식 묶음(OKF, [knowledge/](knowledge/))은 테이블 14개, 데이터 함정 8개, 업무 흐름 2개, 매출·미수금 정의다. 예시만으로는 이를 대신하지 못한다. 회계가 가장 큰 차이를 보였다(RAG만 9.7/13 vs OKF + RAG 13.0/13).
 - 최종 구성(OKF + 예시 검색 + 되묻기)을 claude-opus-5-5로 한 번 재면 47/50이다. Haiku의 같은 구성(세 번 48·48·49)과 회차 변동(±1~2) 안이라, 이 구성에서는 큰 모델로 바꿔도 점수가 오르지 않는다.
@@ -74,6 +76,8 @@ WrenAI 오픈소스에는 행 범위 기능이 없다. 같은 SQL이라도 `exec
 측정 조건과 회차별 숫자는 [docs/plan.md](docs/plan.md)에 있다. 결정 기록은 [docs/adr/](docs/adr/)에 있다.
 
 ## 로컬 실행
+
+준비물: Docker, [uv](https://docs.astral.sh/uv/)(Python 3.12), Node.js·npm, Claude API 키(`ANTHROPIC_API_KEY`). Odoo와 Postgres는 127.0.0.1에만 열린다.
 
 ```bash
 cp .env.example .env
@@ -119,6 +123,12 @@ npm --prefix web run dev
 
 http://127.0.0.1:3000 에서 사용자를 고르고 질문한다. 만들어진 SQL은 고쳐서 다시 실행할 수 있고, 어느 쪽이든 `execute()`가 고른 사용자의 권한 범위를 건다. 로그인이 없는 데모라 두 서버 모두 127.0.0.1에만 연다.
 
+터미널에서도 같은 순서(질문 → SQL → `execute()`)로 물을 수 있다.
+
+```bash
+uv run --directory backend nlq "지난달 확정된 판매 주문은 몇 건이야?" --user sales.kim
+```
+
 ## 평가
 
 ```bash
@@ -130,6 +140,15 @@ uv run --directory backend nlq-eval-wren setup|run   # WrenAI 비교 (docs/refer
 ```
 
 평가 문항(`eval/questions/`)은 프롬프트 예시로 쓰지 않는다. 예시는 `eval/examples/`에서만 가져오고, 둘이 겹치지 않는지 테스트가 검사한다.
+
+## 한계
+
+- **데이터가 작다.** Odoo 데모 데이터(판매 주문 24건)라 guard와 RLS의 실행 시간 차이는 접속 시간에 묻혔다. 큰 테이블에서는 재지 않았다([ADR 0005](docs/adr/0005-rls-vs-guard.md)).
+- **평가 세트는 직접 만든 50문항이다.** 한 스냅숏(`erp-20261103.zip`)과 고정한 "오늘"(2026-11-03)에서 쟀다. 회차 변동이 ±1~2문항이라 그보다 작은 차이는 읽지 않는다. Opus는 최종 구성을 한 번만 쟀다.
+- **필드 단위 권한은 대조하지 않았다.** 행 범위와 테이블 권한은 Odoo와 맞췄지만, 허용 테이블 안 필드에 걸린 그룹 제한은 따로 보지 않았다(`res_users`만 열 5개로 좁힘, [ADR 0008](docs/adr/0008-sql-over-orm-api.md)).
+- **감사 기록은 로컬 파일이다.** 변조를 막지 못한다([ADR 0006](docs/adr/0006-audit-log.md)).
+- **화면에는 로그인이 없다.** 사용자를 고르는 것은 데모용이다. 그래서 API와 화면을 127.0.0.1에만 연다.
+- **WrenAI 비교는 한 버전(0.29.2)이다.** 세 번 측정이 이틀(11-08, 11-09)에 걸쳤다. ORM API 방식의 정확도는 재지 않았다(2차 목록).
 
 ## CI
 
