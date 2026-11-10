@@ -92,7 +92,7 @@ def generate_batch(
         batch = client.messages.batches.retrieve(batch.id)
         counts = batch.request_counts
         log(f"배치 {batch.id}: {batch.processing_status}, 처리 중 {counts.processing}, 완료 {counts.succeeded}")
-    out: list[GeneratedSQL | GenerationError] = [GenerationError("배치 결과에 없다")] * len(built)
+    out: list[GeneratedSQL | GenerationError] = [GenerationError("배치 결과에 없다") for _ in built]
     for entry in client.messages.batches.results(batch.id):
         index = int(entry.custom_id.removeprefix("r"))
         p, output_format = built[index]
