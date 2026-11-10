@@ -17,7 +17,7 @@ docker compose up -d                 # Odoo 19 + Postgres 16(pgvector), 둘 다 
 ./scripts/db-ci-fixture.sh           # CI용 축소 덤프 eval/ci/erp-ci.sql.gz 다시 만들기 (스냅숏·허용 테이블을 바꾼 뒤)
 uv run --directory backend pytest  # 백엔드 테스트 (Python 3.12, uv 필요)
 uv run --directory backend nlq "질문" --user sales.kim   # 터미널에서 질문 → SQL → 결과. --sql, --users 참고
-uv run --directory backend nlq-eval [--model ...] [--prompt okf|schema] [--retrieve none|keyword|embedding] [--clarify on|off] [--enforce guard|rls|both] [--clarify-set] [--ci] [id ...]   # 평가 문항 채점, 영역별 정확도 (eval/README.md)
+uv run --directory backend nlq-eval [--model ...] [--prompt okf|schema] [--retrieve none|keyword|embedding] [--clarify on|off] [--enforce guard|rls|both] [--clarify-set] [--ci] [--batch] [id ...]   # 평가 문항 채점, 영역별 정확도 (eval/README.md)
 uv run --directory backend nlq-report [--no-ask]   # 시스템 답과 지표 정의를 Odoo 보고서(eval/odoo_reports.toml)와 대조
 uv run --directory backend nlq-eval-wren setup|run   # 비교 기준 2: WrenAI(레포 밖 docker)에 같은 50문항 (docs/reference/wrenai.md)
 uv run --directory backend nlq-api    # 화면용 API, 127.0.0.1:8000

@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 from nlq.execute import execute
 from nlq.generate import generate
-from nlq.models import Clarification, ExecutionError, Failed, Rows, User
+from nlq.models import Clarification, ExecutionError, Failed, GeneratedSQL, Rows, User
 
 RETRIES = 1  # plan.md: SQL 실패 시 에러를 넣어 1회 재시도
 
@@ -33,15 +33,20 @@ def ask(question: str, user: User, retries: int = RETRIES, clarified: str | None
     attempts: list[Attempt] = []
     failed: Failed | None = None
     for _ in range(retries + 1):
-        generated = generate(question, user, failed, clarified)
-        if generated.clarification is not None:
-            return [Attempt(sql="", model=generated.model, clarification=generated.clarification)]
-        try:
-            rows = execute(generated.sql, user)
-        except ExecutionError as e:
-            attempts.append(Attempt(sql=generated.sql, model=generated.model, error=e))
-            failed = Failed(sql=generated.sql, error=str(e))
-            continue
-        attempts.append(Attempt(sql=generated.sql, model=generated.model, rows=rows))
-        break
+        attempts.append(run_generated(generate(question, user, failed, clarified), user))
+        last = attempts[-1]
+        if last.error is None:
+            break
+        failed = Failed(sql=last.sql, error=str(last.error))
     return attempts
+
+
+def run_generated(generated: GeneratedSQL, user: User) -> Attempt:
+    """생성 결과 하나를 execute()로 실행한다. 배치 평가(nlq/batch.py)도 이 함수로 실행한다."""
+    if generated.clarification is not None:
+        return Attempt(sql="", model=generated.model, clarification=generated.clarification)
+    try:
+        rows = execute(generated.sql, user)
+    except ExecutionError as e:
+        return Attempt(sql=generated.sql, model=generated.model, error=e)
+    return Attempt(sql=generated.sql, model=generated.model, rows=rows)

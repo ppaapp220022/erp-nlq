@@ -9,6 +9,7 @@
     uv run --directory backend nlq-eval --clarify off         # 되묻기 없이 (전후 비교용)
     uv run --directory backend nlq-eval --clarify-set         # 되묻기 세트(eval/clarify/): 되묻는지, 기준을 고른 뒤 맞히는지
     uv run --directory backend nlq-eval --enforce rls         # 행 범위를 RLS 정책으로 (기본 guard, M6 비교)
+    uv run --directory backend nlq-eval --batch               # 생성을 Message Batches API로 (단가 50%, 비동기, nlq/batch.py)
     uv run --directory backend nlq-eval --ci                  # CI 20문항(eval/ci/questions.yaml). 기준보다 적게 맞히면 종료 코드 1
 
 문항마다 ask()로 SQL을 만들어 실행하고(실패하면 오류를 넣어 다시 만든다), 정답 SQL도 같은 사용자로
@@ -33,8 +34,9 @@ from pathlib import Path
 import yaml
 
 from nlq import GenerationError, execute
-from nlq.ask import RETRIES, ask
-from nlq.generate import DEFAULT_MODEL
+from nlq.ask import RETRIES, Attempt, ask
+from nlq.batch import POLL_SECONDS, Job, run_stages
+from nlq.generate import DEFAULT_MODEL, usage_totals
 from nlq.models import GuardError
 from nlq.prompt import CLARIFY_SETTINGS, DEFAULT_VARIANT, VARIANTS, clarify_enabled, prompt_variant, system_prompt
 from nlq.retrieve import DEFAULT_METHOD, METHODS, load_examples, retrieve, retrieve_method
@@ -82,33 +84,61 @@ def load_questions(ids: list[str] | None = None) -> list[dict]:
 def run_one(q: dict, retries: int = RETRIES, clarified: str | None = None) -> Result:
     user = load_users()[q["role"]].user
     start = time.monotonic()
-    result = Result(id=q["id"], area=q.get("area", "되묻기"), role=q["role"], status="wrong")
+    try:
+        attempts: list[Attempt] | GenerationError = ask(q["question"], user, retries, clarified)
+    except GenerationError as e:
+        attempts = e
+    return score(q, attempts, time.monotonic() - start)
+
+
+def score(q: dict, attempts: list[Attempt] | GenerationError, seconds: float) -> Result:
+    """ask()의 결과(또는 배치 단계의 같은 결과)를 정답 SQL의 실행 결과와 비교한다."""
+    user = load_users()[q["role"]].user
+    result = Result(id=q["id"], area=q.get("area", "되묻기"), role=q["role"], status="wrong", seconds=round(seconds, 1))
     # generate()와 같은 호출이라 같은 예시가 나온다(결정적)
     result.examples = [e.id for e in retrieve(q["question"], user)]
     # 정답이 실행되지 않으면 문항 쪽 문제다. 채점하지 않고 멈춘다(test_eval_questions.py가 먼저 잡아야 한다).
     gold = execute(q["gold_sql"], user)
-    try:
-        attempts = ask(q["question"], user, retries, clarified)
-    except GenerationError as e:
-        result.status, result.error = "generation_error", str(e)
+    if isinstance(attempts, GenerationError):
+        result.status, result.error = "generation_error", str(attempts)
+        return result
+    last = attempts[-1]
+    if last.clarification is not None:
+        result.status = "clarification"
+        result.clarification, result.options = last.clarification.question, list(last.clarification.options)
+        return result
+    result.sql, result.retried = last.sql, len(attempts) - 1
+    if result.retried:
+        result.first_error = str(attempts[0].error)
+    if isinstance(last.error, GuardError):
+        result.status, result.error = "guard_rejected", str(last.error)
+    elif last.error is not None:
+        result.status, result.error = "execution_error", str(last.error)
     else:
-        last = attempts[-1]
-        if last.clarification is not None:
-            result.status = "clarification"
-            result.clarification, result.options = last.clarification.question, list(last.clarification.options)
-            result.seconds = round(time.monotonic() - start, 1)
-            return result
-        result.sql, result.retried = last.sql, len(attempts) - 1
-        if result.retried:
-            result.first_error = str(attempts[0].error)
-        if isinstance(last.error, GuardError):
-            result.status, result.error = "guard_rejected", str(last.error)
-        elif last.error is not None:
-            result.status, result.error = "execution_error", str(last.error)
-        else:
-            result.status = "correct" if matches(gold, last.rows, q["order_matters"]) else "wrong"
-    result.seconds = round(time.monotonic() - start, 1)
+        result.status = "correct" if matches(gold, last.rows, q["order_matters"]) else "wrong"
     return result
+
+
+def run_all(pairs: list[tuple[dict, str | None]], args: argparse.Namespace) -> tuple[list[Result], list[str]]:
+    """(문항, 고른 기준) 목록을 돌린다. --batch면 생성을 단계별 배치로 모으고, 아니면 문항마다 ask()를 부른다.
+
+    어느 쪽이든 생성 SQL은 ask.run_generated() → execute()로 실행하고 score()로 채점한다.
+    """
+    with ThreadPoolExecutor(max_workers=args.jobs) as pool:
+        if not args.batch:
+            return list(pool.map(lambda p: run_one(p[0], args.retries, p[1]), pairs)), []
+        start = time.monotonic()
+        jobs = [Job(q["question"], load_users()[q["role"]].user, clarified) for q, clarified in pairs]
+        outcomes, batch_ids = run_stages(
+            jobs, args.retries, lambda f, ids: list(pool.map(f, ids)), poll=args.batch_poll
+        )
+        results = list(
+            pool.map(
+                lambda po: score(po[0][0], po[1].error or po[1].attempts, po[1].finished - start),
+                zip(pairs, outcomes),
+            )
+        )
+    return results, batch_ids
 
 
 def summarize(results: list[Result]) -> dict[str, dict[str, int]]:
@@ -161,6 +191,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--enforce", choices=ENFORCEMENTS, help="행 범위를 거는 방식 (기본: NLQ_ENFORCE, 없으면 guard)")
     parser.add_argument("--retries", type=int, default=RETRIES, help=f"실행 실패 시 다시 만드는 횟수 (기본 {RETRIES})")
     parser.add_argument("--jobs", type=int, default=4, help="동시에 돌릴 문항 수")
+    parser.add_argument("--batch", action="store_true", help="생성을 Message Batches API로 (단가 50%%, 응답은 비동기). --ci와 함께 쓸 수 없다")
+    parser.add_argument("--batch-poll", type=float, default=POLL_SECONDS, help=f"배치 상태를 확인하는 간격(초, 기본 {POLL_SECONDS})")
     args = parser.parse_args(argv)
 
     if args.model:
@@ -173,6 +205,8 @@ def main(argv: list[str] | None = None) -> int:
         os.environ["NLQ_CLARIFY"] = args.clarify
     if args.enforce:
         os.environ["NLQ_ENFORCE"] = args.enforce
+    if args.batch and args.ci:
+        parser.error("--batch는 응답이 늦어 CI(--ci)에서 쓰지 않는다")
     if args.clarify_set:
         return clarify_main(args)
     model = setting("EVAL_MODEL", DEFAULT_MODEL)
@@ -184,14 +218,13 @@ def main(argv: list[str] | None = None) -> int:
     questions = load_questions(ci["questions"] if ci else args.ids)
     print(
         f"모델 {model}, 프롬프트 {variant} {prompt_version()}, 검색 {method}, 되묻기 {_clarify_label()}, "
-        f"재시도 {args.retries}, 범위 {enforcement()}, 문항 {len(questions)}개",
+        f"재시도 {args.retries}, 범위 {enforcement()}, 문항 {len(questions)}개{', 배치' if args.batch else ''}",
         file=sys.stderr,
     )
     # 임베딩 모델은 스레드를 띄우기 전에 한 번 적재한다
     retrieve(questions[0]["question"], load_users()[questions[0]["role"]].user)
 
-    with ThreadPoolExecutor(max_workers=args.jobs) as pool:
-        results = list(pool.map(lambda q: run_one(q, args.retries), questions))
+    results, batch_ids = run_all([(q, None) for q in questions], args)
     for r in results:
         detail = f"  {r.error}" if r.error else ""
         if r.retried:
@@ -208,16 +241,19 @@ def main(argv: list[str] | None = None) -> int:
         "clarify": _clarify_label(),
         "retries": args.retries,
         "enforce": enforcement(),
+        "batch": batch_ids or None,
+        "usage": usage_totals(),
         "today": eval_today(),
         "finished_at": datetime.now().isoformat(timespec="seconds"),
         "summary": summary,
         "results": [asdict(r) for r in results],
     }
     RESULTS.mkdir(exist_ok=True)
-    path = RESULTS / f"{datetime.now():%Y%m%d-%H%M%S}-{model}-{variant}-{method}-r{args.retries}{'' if clarify_enabled() else '-noclarify'}{'' if enforcement() == 'guard' else '-' + enforcement()}.json"
+    path = RESULTS / f"{datetime.now():%Y%m%d-%H%M%S}-{model}-{variant}-{method}-r{args.retries}{'' if clarify_enabled() else '-noclarify'}{'' if enforcement() == 'guard' else '-' + enforcement()}{'-batch' if args.batch else ''}.json"
     path.write_text(json.dumps(record, ensure_ascii=False, indent=2))
     print(format_summary(summary))
-    print(f"\n결과: {path.relative_to(ROOT)}", file=sys.stderr)
+    print(f"\n토큰: {_format_usage(usage_totals())}", file=sys.stderr)
+    print(f"결과: {path.relative_to(ROOT)}", file=sys.stderr)
     if ci:
         correct = sum(r.status == "correct" for r in results)
         verdict = "통과" if correct >= ci["min_correct"] else "실패"
@@ -225,6 +261,10 @@ def main(argv: list[str] | None = None) -> int:
         if correct < ci["min_correct"]:
             return 1
     return 0
+
+
+def _format_usage(usage: dict[str, int]) -> str:
+    return ", ".join(f"{k} {v:,}" for k, v in usage.items())
 
 
 def _clarify_label() -> str:
@@ -250,11 +290,9 @@ def clarify_main(args: argparse.Namespace) -> int:
     )
     retrieve(items[0]["question"], load_users()[items[0]["role"]].user)
 
-    def both(q: dict) -> tuple[Result, Result]:
-        return run_one(q, args.retries), run_one(q, args.retries, clarified=q["answer"])
-
-    with ThreadPoolExecutor(max_workers=args.jobs) as pool:
-        pairs = list(pool.map(both, items))
+    # 문항마다 두 번: 그대로 한 번, 고른 기준을 넣어 한 번. 배치면 두 질문이 같은 배치에 들어간다
+    results, batch_ids = run_all([(q, None) for q in items] + [(q, q["answer"]) for q in items], args)
+    pairs = list(zip(results[: len(items)], results[len(items) :]))
     asked = sum(first.status == "clarification" for first, _ in pairs)
     direct = sum(first.status == "correct" for first, _ in pairs)
     fixed = sum(second.status == "correct" for _, second in pairs)
@@ -268,13 +306,15 @@ def clarify_main(args: argparse.Namespace) -> int:
         "retrieve": retrieve_method(),
         "clarify": _clarify_label(),
         "retries": args.retries,
+        "batch": batch_ids or None,
+        "usage": usage_totals(),
         "today": eval_today(),
         "finished_at": datetime.now().isoformat(timespec="seconds"),
         "summary": {"total": len(items), "asked": asked, "correct_first": direct, "correct_after_answer": fixed},
         "results": [{"first": asdict(a), "after_answer": asdict(b)} for a, b in pairs],
     }
     RESULTS.mkdir(exist_ok=True)
-    path = RESULTS / f"{datetime.now():%Y%m%d-%H%M%S}-{model}-clarify-set-{_clarify_label()}.json"
+    path = RESULTS / f"{datetime.now():%Y%m%d-%H%M%S}-{model}-clarify-set-{_clarify_label()}{'-batch' if args.batch else ''}.json"
     path.write_text(json.dumps(record, ensure_ascii=False, indent=2))
     print(
         f"| 문항 | 되물음 | 첫 답 정답 | 기준을 고른 뒤 정답 |\n|---|---|---|---|\n| {len(items)} | {asked} | {direct} | {fixed} |"
