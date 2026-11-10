@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from collections import Counter
 from functools import cache
+from threading import Lock
 from typing import Literal
 
 import anthropic
@@ -37,6 +39,25 @@ def _client() -> anthropic.Anthropic:
     return anthropic.Anthropic(api_key=setting("ANTHROPIC_API_KEY"))
 
 
+def request(
+    question: str, user: User, failed: Failed | None = None, clarified: str | None = None
+) -> tuple[dict, type[_Answer] | type[_AnswerOrClarify]]:
+    """generate()가 보내는 요청 인자와 출력 형식. 배치 평가(nlq/batch.py)도 같은 요청을 만든다."""
+    model = setting("EVAL_MODEL", DEFAULT_MODEL)
+    examples = retrieve(question, user)  # NLQ_RETRIEVE가 none이면 빈 목록 (기본 keyword)
+    may_clarify = clarify_enabled() and failed is None and clarified is None
+    params = {
+        "model": model,
+        "max_tokens": MAX_TOKENS,
+        "output_config": {"effort": EFFORT},
+        # 지침·열 목록·OKF 묶음은 같은 역할이면 질문마다 같아서 캐시한다. 질문은 사용자 메시지라 캐시 뒤에 붙는다.
+        "system": [{"type": "text", "text": system_prompt(user=user), "cache_control": {"type": "ephemeral"}}],
+        # 예시는 질문마다 달라 캐시 뒤인 사용자 메시지에 넣는다
+        "messages": [{"role": "user", "content": user_message(question, user, failed, examples, clarified)}],
+    }
+    return params, _AnswerOrClarify if may_clarify else _Answer
+
+
 def generate(question: str, user: User, failed: Failed | None = None, clarified: str | None = None) -> GeneratedSQL:
     """질문을 SQL로 바꾼다 (M2). failed가 있으면 그 SQL과 오류를 보고 고쳐 쓴다 (자기 수정, M5).
 
@@ -47,22 +68,16 @@ def generate(question: str, user: User, failed: Failed | None = None, clarified:
     execute()가 막아야 하고, 여기서 막았다고 안전하다고 보지 않는다.
     "이번 달" 같은 표현은 eval/config.yaml의 today 기준으로 풀게 한다.
     """
-    model = setting("EVAL_MODEL", DEFAULT_MODEL)
-    examples = retrieve(question, user)  # NLQ_RETRIEVE가 none이면 빈 목록 (기본 keyword)
-    may_clarify = clarify_enabled() and failed is None and clarified is None
-    response = _client().messages.parse(
-        model=model,
-        max_tokens=MAX_TOKENS,
-        output_config={"effort": EFFORT},
-        # 지침·열 목록·OKF 묶음은 같은 역할이면 질문마다 같아서 캐시한다. 질문은 사용자 메시지라 캐시 뒤에 붙는다.
-        system=[{"type": "text", "text": system_prompt(user=user), "cache_control": {"type": "ephemeral"}}],
-        # 예시는 질문마다 달라 캐시 뒤인 사용자 메시지에 넣는다
-        messages=[{"role": "user", "content": user_message(question, user, failed, examples, clarified)}],
-        output_format=_AnswerOrClarify if may_clarify else _Answer,
-    )
-    answer = response.parsed_output
-    if response.stop_reason != "end_turn" or answer is None:
-        raise GenerationError(f"SQL을 만들지 못했다 (stop_reason={response.stop_reason})")
+    params, output_format = request(question, user, failed, clarified)
+    response = _client().messages.parse(**params, output_format=output_format)
+    record_usage(getattr(response, "usage", None))
+    return to_generated(response.stop_reason, response.parsed_output, params["model"])
+
+
+def to_generated(stop_reason: str | None, answer: _Answer | _AnswerOrClarify | None, model: str) -> GeneratedSQL:
+    """모델 출력을 GeneratedSQL로 바꾼다. 동기 호출과 배치 결과가 같은 검사를 거친다."""
+    if stop_reason != "end_turn" or answer is None:
+        raise GenerationError(f"SQL을 만들지 못했다 (stop_reason={stop_reason})")
     if getattr(answer, "kind", "sql") == "clarify":
         options = tuple(o.strip() for o in answer.options if o.strip())
         if not answer.clarification.strip() or not MIN_OPTIONS <= len(options) <= MAX_OPTIONS:
@@ -71,3 +86,22 @@ def generate(question: str, user: User, failed: Failed | None = None, clarified:
     if not answer.sql.strip():
         raise GenerationError("SQL이 비어 있다")
     return GeneratedSQL(sql=answer.sql.strip(), model=model)
+
+
+# 평가가 비용을 기록하려고 토큰 수를 모은다. 질문·답은 담지 않는다.
+USAGE_FIELDS = ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "output_tokens")
+_usage: Counter[str] = Counter()
+_usage_lock = Lock()
+
+
+def record_usage(usage: object) -> None:
+    if usage is None:
+        return
+    with _usage_lock:
+        for name in USAGE_FIELDS:
+            _usage[name] += getattr(usage, name, None) or 0
+
+
+def usage_totals() -> dict[str, int]:
+    with _usage_lock:
+        return {name: _usage[name] for name in USAGE_FIELDS}

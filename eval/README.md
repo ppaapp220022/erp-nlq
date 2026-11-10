@@ -84,6 +84,7 @@ uv run --directory backend nlq-eval --retries 0                # 자기 수정 �
 uv run --directory backend nlq-eval --retrieve embedding       # 비슷한 예시 3개를 사용자 메시지에 넣어 (기본 keyword, none은 넣지 않음)
 uv run --directory backend nlq-eval --clarify off              # 되묻기 없이 (기본 on)
 uv run --directory backend nlq-eval --clarify-set              # 되묻기 세트: 되묻는지, 기준을 고른 뒤 맞히는지
+uv run --directory backend nlq-eval --batch                    # 생성을 Message Batches API로 (토큰 단가 50%, 응답은 비동기)
 ```
 
 비교 규칙은 [backend/nlq/scoring.py](../backend/nlq/scoring.py)에 있다.
@@ -96,3 +97,16 @@ uv run --directory backend nlq-eval --clarify-set              # 되묻기 세�
 - 생성 SQL이 실행되지 않으면(guard 거부·실행 오류) 오류를 넣어 한 번 다시 만들고 마지막 시도를 채점한다(자기 수정, `--retries`, 기본 1). 결과 표의 "재시도"는 다시 만든 문항 수, "재시도로 정답"은 그중 맞힌 수다. 결과 파일에는 `retries` 설정과 문항별 `retried`·`first_error`가 남는다. M4 결과 표는 자기 수정 전이라 `--retries 0`과 같다.
 - 예시 검색은 `NLQ_RETRIEVE`(또는 `--retrieve`)로 고른다. `keyword`는 질문 글자 2-gram BM25, `embedding`은 다국어 문장 임베딩이고, 질문한 사용자가 읽을 수 있는 테이블만 쓰는 예시 중 3개를 고른다([backend/nlq/retrieve.py](../backend/nlq/retrieve.py), [ADR 0004](../docs/adr/0004-example-retrieval-in-memory.md)). 결과 파일 이름에 검색 방식이 붙고, 문항별 `examples`에 넣은 예시 id, `examples_version`에 예시 묶음 해시가 남는다.
 - 프롬프트 변형은 `NLQ_PROMPT`(또는 `--prompt`)로 고른다. `okf`는 지침 + 열 목록 + OKF 묶음, `schema`는 OKF 묶음과 그것을 가리키는 지침 한 줄만 뺀 비교 기준 1이다([backend/nlq/prompt.py](../backend/nlq/prompt.py)).
+
+## 배치 모드 (`--batch`)
+
+`--batch`는 생성 호출을 [Message Batches API](https://docs.claude.com/en/docs/build-with-claude/batch-processing)로 모은다. 토큰 단가가 동기 호출의 절반이고, 응답은 보통 수 분, 늦으면 24시간 안에 온다. 기본은 지금처럼 동기 호출이다.
+
+- 바뀌는 것은 생성 호출뿐이다. 요청은 `generate()`와 같은 인자(`nlq.generate.request`: 모델, effort, 캐시 지점이 걸린 시스템 프롬프트, 예시가 든 사용자 메시지)로 만들고, 응답은 같은 검사(`to_generated`)를 거친다([backend/nlq/batch.py](../backend/nlq/batch.py)).
+- 생성 SQL은 받은 뒤 `ask.run_generated()` → `execute()`로 실행하고, 동기 경로와 같은 `score()`로 채점한다(CLAUDE.md 절대 규칙 1·2).
+- 문항마다 LLM 호출은 최대 `retries + 1`번이다(첫 생성, 실행 실패 시 오류를 넣은 재생성). 재생성은 앞 결과가 있어야 만들 수 있어서 단계마다 배치를 하나씩 보낸다. 둘째 배치에는 첫 SQL이 실행되지 않은 문항만 들어간다. 되묻기 판단은 첫 생성의 출력 형식 안에 있어 따로 부르지 않는다. `--clarify-set`은 그대로 묻기와 기준을 넣어 묻기를 한 배치에 함께 보낸다.
+- 배치에서 실패(`errored`)·만료(`expired`)·취소(`canceled`)된 요청과 결과에 없는 요청은 `generation_error`로 센다. 다시 보내지 않는다.
+- 프롬프트 캐싱은 배치에서도 켜져 있다(시스템 프롬프트의 `cache_control`). 배치 요청은 순서 없이 동시에 처리되어 캐시 적중은 동기 호출보다 들쭉날쭉하다.
+- `--ci`와 함께 쓸 수 없다. CI는 응답을 기다릴 수 없다. `nlq`·`nlq-api`의 대화형 경로도 그대로 동기 호출이다.
+- 결과 파일 이름 끝에 `-batch`가 붙고, `batch`에 배치 id 목록이 남는다. 동기·배치 모두 `usage`에 토큰 수(입력, 캐시 쓰기, 캐시 읽기, 출력)가 남는다. 문항별 `seconds`는 배치 모드에서 실행 시작부터 그 문항의 마지막 단계가 끝날 때까지다.
+- 상태 확인 간격은 `--batch-poll`(초, 기본 30)이다. 중간에 멈춰도 배치는 Anthropic 쪽에서 계속 돌므로 콘솔에서 취소한다.
